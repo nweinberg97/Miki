@@ -108,7 +108,7 @@ export function WriteMode({ project, query }: { project: Project; query: URLSear
       )}
       <section className="write-main">
         {current ? (
-          <DocEditor key={current.id} doc={current} project={project} materialOpen={materialOpen} onToggleMaterial={() => setMaterialOpen((o) => !o)} />
+          <DocEditor key={current.id} doc={current} docs={sorted} onNewDoc={() => void newDoc()} project={project} materialOpen={materialOpen} onToggleMaterial={() => setMaterialOpen((o) => !o)} />
         ) : requested ? (
           <EmptyState
             icon={IconDoc}
@@ -193,7 +193,21 @@ function DocRow({ doc, active, project, index, all }: { doc: Document; active: b
   );
 }
 
-function DocEditor({ doc, project, materialOpen, onToggleMaterial }: { doc: Document; project: Project; materialOpen: boolean; onToggleMaterial: () => void }) {
+function DocEditor({
+  doc,
+  docs,
+  onNewDoc,
+  project,
+  materialOpen,
+  onToggleMaterial,
+}: {
+  doc: Document;
+  docs: Document[];
+  onNewDoc: () => void;
+  project: Project;
+  materialOpen: boolean;
+  onToggleMaterial: () => void;
+}) {
   const autosave = useAutosave(doc.id);
   const editor = useRef<EditorHandle>(null);
   const [stats, setStats] = useState({ words: doc.wordCount, selectionWords: 0 });
@@ -230,6 +244,19 @@ function DocEditor({ doc, project, materialOpen, onToggleMaterial }: { doc: Docu
     <div className="doc-editor">
       <div className="doc-bar" role="toolbar" aria-label="Document">
         <div className="doc-bar-left">
+          <span className="doc-switch">
+            <Menu
+              label="Documents"
+              align="start"
+              trigger={(t) => <IconButton {...t} icon={IconDoc} label="Switch document" />}
+              items={[
+                { heading: "Drafts" },
+                ...docs.map((d) => ({ label: d.title || "Untitled", checked: d.id === doc.id, onSelect: () => setQuery({ doc: d.id }) })),
+                { separator: true },
+                { label: "New document", icon: IconDocPlus, onSelect: onNewDoc },
+              ]}
+            />
+          </span>
           <SaveIndicator status={autosave.status} lastSavedAt={autosave.lastSavedAt} error={autosave.error} onRetry={autosave.retry} />
           <span className="doc-bar-stat" aria-live="off">
             {stats.selectionWords > 0 ? `${plural(stats.selectionWords, "word")} selected · ` : ""}

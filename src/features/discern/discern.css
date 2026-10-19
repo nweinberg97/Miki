@@ -339,7 +339,13 @@
 }
 @media (max-width: 768px) {
   .discern {
-    grid-template-columns: minmax(0, 1fr);
+    display: block;
+    overflow-y: auto;
+    height: 100%;
+  }
+  .discern-main {
+    height: auto;
+    overflow: visible;
   }
   .discern-nav {
     border-right: 0;

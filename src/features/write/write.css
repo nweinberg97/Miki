@@ -81,6 +81,9 @@
     opacity: 1;
   }
 }
+.doc-switch {
+  display: none;
+}
 .doc-status-dot {
   width: 7px;
   height: 7px;
@@ -406,6 +409,10 @@
   }
   .doc-nav {
     display: none;
+  }
+  .doc-switch {
+    display: inline-flex;
+    margin-right: -8px;
   }
   .doc-page {
     padding: 24px 18px 0;

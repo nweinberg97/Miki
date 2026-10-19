@@ -189,7 +189,7 @@ function SpeakCapture({ dest, onActive, onDone }: { dest: string; onActive: (v: 
       onDone();
       const go = () => (dest === INBOX ? navigate("/inbox", { rec: r.id }) : navigate(projectPath(dest, "capture"), { rec: r.id }));
       go();
-      toast(text.trim() ? "Recording and live transcript saved." : "Recording saved. You can transcribe it whenever you like.");
+      toast(text.trim() ? "Recording and live transcript saved." : "Recording saved on this device.");
     } catch (e) {
       toastError(e, "Couldn't save the recording. It's still here — try again.");
       setBusy(false);

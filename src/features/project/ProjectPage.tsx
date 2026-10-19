@@ -35,6 +35,11 @@ export function ProjectPage({ projectId, mode: rawMode, query }: { projectId: st
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id, mode, entityId]);
 
+  // Keep the active mode tab visible when the tab strip scrolls (small screens).
+  useEffect(() => {
+    document.querySelector(".mode-tab.is-active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [mode, project?.id]);
+
   useEffect(() => {
     if (project) document.title = `${project.title} · Miki`;
     return () => {

@@ -20,6 +20,7 @@ export async function esbuildOptions({ outdir, dev = false, single = false }) {
     bundle: true,
     format: "esm",
     splitting: !single,
+    // The single-file demo can't load lazy chunks, so everything is bundled into one script.
     outdir,
     write: !single,
     metafile: true,
@@ -50,7 +51,8 @@ export async function renderIndexHtml({ scripts, styles, dev = false, inlineJs =
   ].join("\n    ");
   const body = [
     ...scripts.map((s) => `<script type="module" src="./${s}"></script>`),
-    inlineJs ? `<script type="module">${inlineJs.replace(/<\/script/gi, "<\\/script")}</script>` : "",
+    // Inline as a base64 data URL: avoids HTML-parser pitfalls with "</script" or "<!--" inside the bundle.
+    inlineJs ? `<script type="module" src="data:text/javascript;base64,${Buffer.from(inlineJs).toString("base64")}"></script>` : "",
     dev
       ? `<script>new EventSource("/__reload").addEventListener("reload",()=>location.reload())</script>`
       : "",
