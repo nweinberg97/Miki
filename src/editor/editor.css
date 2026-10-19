@@ -1,0 +1,191 @@
+.ProseMirror {
+  position: relative;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  white-space: break-spaces;
+  font-variant-ligatures: common-ligatures;
+}
+.ProseMirror-hideselection *::selection {
+  background: transparent;
+}
+.ProseMirror-hideselection {
+  caret-color: transparent;
+}
+.ProseMirror [draggable][contenteditable="false"] {
+  user-select: text;
+}
+.ProseMirror-selectednode {
+  outline: 2px solid var(--moss);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.ProseMirror-gapcursor {
+  display: none;
+  pointer-events: none;
+  position: absolute;
+}
+.ProseMirror-gapcursor:after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: -2px;
+  width: 20px;
+  border-top: 1px solid var(--ink);
+  animation: ProseMirror-cursor-blink 1.1s steps(2, start) infinite;
+}
+@keyframes ProseMirror-cursor-blink {
+  to {
+    visibility: hidden;
+  }
+}
+.ProseMirror-focused .ProseMirror-gapcursor {
+  display: block;
+}
+
+/* ---------------------------------------------------------------- the page */
+.prose {
+  font-family: var(--font-prose);
+  font-size: var(--prose-size);
+  line-height: 1.72;
+  color: var(--ink);
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 14;
+  outline: none;
+  caret-color: var(--moss);
+  min-height: 50vh;
+  padding-bottom: 40vh;
+  hanging-punctuation: first;
+}
+.prose:focus {
+  outline: none;
+}
+.prose > * + * {
+  margin-top: 0.95em;
+}
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-family: var(--font-display);
+  font-weight: 450;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.prose h1 {
+  font-size: 2em;
+  font-variation-settings: "opsz" 110;
+  margin-top: 0.4em;
+  margin-bottom: 0.15em;
+  letter-spacing: -0.025em;
+}
+.prose h2 {
+  font-size: 1.42em;
+  font-variation-settings: "opsz" 60;
+  margin-top: 1.6em;
+}
+.prose h3 {
+  font-size: 1.12em;
+  font-variation-settings: "opsz" 30;
+  font-weight: 560;
+  margin-top: 1.4em;
+}
+.prose > :first-child {
+  margin-top: 0;
+}
+.prose blockquote {
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 1.1em;
+  border-left: 2px solid var(--moss);
+  color: var(--ink-2);
+  font-style: italic;
+}
+.prose blockquote > * + * {
+  margin-top: 0.6em;
+}
+.prose ul,
+.prose ol {
+  padding-left: 1.4em;
+}
+.prose li + li {
+  margin-top: 0.3em;
+}
+.prose li > p {
+  margin: 0;
+}
+.prose li::marker {
+  color: var(--muted);
+}
+.prose hr {
+  border: 0;
+  height: auto;
+  text-align: center;
+  margin: 2em 0;
+}
+.prose hr::after {
+  content: "∗  ∗  ∗";
+  color: var(--faint);
+  letter-spacing: 0.4em;
+  font-size: 0.85em;
+}
+.prose a {
+  color: var(--moss-ink);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--moss) 45%, transparent);
+  text-underline-offset: 3px;
+}
+.prose strong {
+  font-weight: 650;
+}
+.prose .is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--faint);
+  pointer-events: none;
+  position: absolute;
+  font-style: italic;
+}
+
+/* ---------------------------------------------------------------- bubble toolbar */
+.bubble {
+  position: fixed;
+  z-index: 60;
+  transform: translate(-50%, calc(-100% - 10px));
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 4px;
+  border-radius: 11px;
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: var(--shadow-3);
+  animation: pop-in var(--t-fast) var(--ease-out);
+}
+.bubble-btn {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: color-mix(in oklab, var(--paper) 78%, transparent);
+}
+.bubble-btn:hover {
+  background: color-mix(in oklab, var(--paper) 14%, transparent);
+  color: var(--paper);
+}
+.bubble-btn.is-active {
+  color: var(--paper);
+  background: color-mix(in oklab, var(--paper) 20%, transparent);
+}
+.bubble-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: color-mix(in oklab, var(--paper) 20%, transparent);
+}
+@media (pointer: coarse) {
+  .bubble {
+    transform: translate(-50%, calc(-100% - 46px));
+  }
+}

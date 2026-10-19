@@ -1,0 +1,50 @@
+{
+  "name": "miki",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Miki — a visual writing studio. Find the thread.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "build:single": "node scripts/build.mjs --single",
+    "start": "node server/server.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "node --import tsx --test tests/unit/*.test.ts",
+    "test:e2e": "node tests/e2e/run.mjs"
+  },
+  "dependencies": {
+    "docx": "^9.7.1",
+    "dompurify": "^3.4.0",
+    "marked": "^18.0.0",
+    "prosemirror-commands": "^1.7.1",
+    "prosemirror-dropcursor": "^1.8.2",
+    "prosemirror-gapcursor": "^1.4.1",
+    "prosemirror-history": "^1.5.0",
+    "prosemirror-inputrules": "^1.5.1",
+    "prosemirror-keymap": "^1.2.3",
+    "prosemirror-model": "^1.25.4",
+    "prosemirror-schema-list": "^1.5.1",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-transform": "^1.12.0",
+    "prosemirror-view": "^1.41.7",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-icons": "^5.7.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "esbuild": "^0.28.2",
+    "playwright": "1.56.0",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3"
+  }
+}

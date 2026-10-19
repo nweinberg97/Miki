@@ -1,0 +1,179 @@
+/* Fonts are self-hosted (SIL Open Font License) so Miki works offline and never calls a font CDN. */
+@font-face {
+  font-family: "Fraunces";
+  src: url("../assets/fonts/Fraunces.woff") format("woff");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fraunces";
+  src: url("../assets/fonts/Fraunces-Italic.woff") format("woff");
+  font-weight: 300 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Literata";
+  src: url("../assets/fonts/Literata.woff") format("woff");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Literata";
+  src: url("../assets/fonts/Literata-Italic.woff") format("woff");
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("../assets/fonts/InstrumentSans.woff") format("woff");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("../assets/fonts/InstrumentSans-Italic.woff") format("woff");
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  /* Paper, stone, ink, and moss. */
+  --paper: #f7f5f0;
+  --paper-deep: #f1eee7;
+  --surface: #ffffff;
+  --surface-2: #fbfaf7;
+  --sunken: #eeebe3;
+  --ink: #252722;
+  --ink-2: #464842;
+  --muted: #686a63;
+  --faint: #9a9b94;
+  --border: #e5e2da;
+  --border-strong: #d4d0c5;
+  --moss: #5f6e52;
+  --moss-hover: #526047;
+  --moss-ink: #3c4733;
+  --moss-soft: #edf0e8;
+  --moss-wash: #f4f6f1;
+  --warm: #d9b58c;
+  --warm-ink: #8a5f2f;
+  --warm-soft: #f7ede0;
+  --danger: #a4493d;
+  --danger-soft: #f8e9e5;
+  --focus: #5f6e52;
+  --selection: rgba(95, 110, 82, 0.18);
+  --scrim: rgba(28, 29, 26, 0.32);
+  --grid-dot: rgba(37, 39, 34, 0.09);
+
+  --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-prose: "Literata", "Iowan Old Style", Charter, Georgia, serif;
+  --font-ui: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --text-2xl: 2.125rem;
+  --text-3xl: 2.875rem;
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  --shadow-1: 0 1px 2px rgba(37, 39, 34, 0.05), 0 1px 1px rgba(37, 39, 34, 0.03);
+  --shadow-2: 0 1px 2px rgba(37, 39, 34, 0.05), 0 10px 28px -14px rgba(37, 39, 34, 0.22);
+  --shadow-3: 0 2px 6px rgba(37, 39, 34, 0.06), 0 24px 60px -20px rgba(37, 39, 34, 0.3);
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 120ms;
+  --t-med: 200ms;
+  --t-slow: 320ms;
+
+  --rail-w: 68px;
+  --prose-measure: 38rem;
+  --prose-size: 1.1875rem;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #1b1c19;
+  --paper-deep: #171815;
+  --surface: #23241f;
+  --surface-2: #20211d;
+  --sunken: #151613;
+  --ink: #ecebe4;
+  --ink-2: #cfcec6;
+  --muted: #a3a39a;
+  --faint: #75766f;
+  --border: #33342e;
+  --border-strong: #45463f;
+  --moss: #a7b894;
+  --moss-hover: #b9c8a7;
+  --moss-ink: #c9d6b9;
+  --moss-soft: #2b3226;
+  --moss-wash: #23271f;
+  --warm: #d9b58c;
+  --warm-ink: #e2c39f;
+  --warm-soft: #3a3024;
+  --danger: #e08a7d;
+  --danger-soft: #3a2420;
+  --focus: #a7b894;
+  --selection: rgba(167, 184, 148, 0.24);
+  --scrim: rgba(0, 0, 0, 0.5);
+  --grid-dot: rgba(236, 235, 228, 0.07);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
+  --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.3), 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #1b1c19;
+    --paper-deep: #171815;
+    --surface: #23241f;
+    --surface-2: #20211d;
+    --sunken: #151613;
+    --ink: #ecebe4;
+    --ink-2: #cfcec6;
+    --muted: #a3a39a;
+    --faint: #75766f;
+    --border: #33342e;
+    --border-strong: #45463f;
+    --moss: #a7b894;
+    --moss-hover: #b9c8a7;
+    --moss-ink: #c9d6b9;
+    --moss-soft: #2b3226;
+    --moss-wash: #23271f;
+    --warm: #d9b58c;
+    --warm-ink: #e2c39f;
+    --warm-soft: #3a3024;
+    --danger: #e08a7d;
+    --danger-soft: #3a2420;
+    --focus: #a7b894;
+    --selection: rgba(167, 184, 148, 0.24);
+    --scrim: rgba(0, 0, 0, 0.5);
+    --grid-dot: rgba(236, 235, 228, 0.07);
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
+    --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.3), 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-med: 0ms;
+    --t-slow: 0ms;
+  }
+}

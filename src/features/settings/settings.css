@@ -1,0 +1,93 @@
+.settings-section {
+  padding: 26px 0;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+  scroll-margin-top: 20px;
+}
+.settings-section > p {
+  line-height: 1.6;
+  max-width: 40rem;
+}
+.settings-section .section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-lg);
+}
+.settings-section .section-title svg {
+  color: var(--moss);
+}
+.settings-section .btn {
+  justify-self: start;
+}
+.settings-section .row .btn {
+  justify-self: auto;
+}
+.settings-facts {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  font-size: var(--text-sm);
+}
+.settings-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.settings-facts dt {
+  color: var(--muted);
+}
+.settings-facts dd {
+  margin: 0;
+  font-weight: 550;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  font-weight: 550;
+}
+.engine {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: grid;
+  gap: 8px;
+}
+.engine-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+}
+.code {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--sunken);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+}
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--sunken);
+}
+.settings-danger .section-title {
+  color: var(--danger);
+}
