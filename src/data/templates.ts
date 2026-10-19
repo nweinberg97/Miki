@@ -81,7 +81,7 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
   {
     type: "blank",
     label: "Blank",
-    blurb: "An empty studio. Add structure when you want it.",
+    blurb: "A bare tree. Add shape when you want it.",
     ideaClusters: [],
     structureSections: [],
     structureLabel: "Structure",

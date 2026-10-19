@@ -11,13 +11,13 @@ import { Button, Field, TextInput } from "../../ui/ui";
 export function NewProjectDialog({ open, onClose, initialTitle = "" }: { open: boolean; onClose: () => void; initialTitle?: string }) {
   const [title, setTitle] = useState(initialTitle);
   const [type, setType] = useState<ProjectType>("essay");
-  const [description, setDescription] = useState("");
+  const [purpose, setPurpose] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (open) {
       setTitle(initialTitle);
-      setDescription("");
+      setPurpose("");
       setBusy(false);
     }
   }, [open, initialTitle]);
@@ -26,9 +26,9 @@ export function NewProjectDialog({ open, onClose, initialTitle = "" }: { open: b
     if (!title.trim() || busy) return;
     setBusy(true);
     try {
-      const { project } = await createProject({ title, type, description });
+      const { project } = await createProject({ title, type, purpose });
       onClose();
-      navigate(projectPath(project.id));
+      navigate(projectPath(project.id, purpose.trim() ? "leaves" : "roots"));
     } catch (e) {
       toastError(e, "Couldn't create the project.");
       setBusy(false);
@@ -39,8 +39,8 @@ export function NewProjectDialog({ open, onClose, initialTitle = "" }: { open: b
     <Dialog
       open={open}
       onClose={onClose}
-      title="Start a project"
-      description="Pick a shape to begin with. You can change everything later."
+      title="Plant a new tree"
+      description="Every piece starts in the ground: what it is, and why. You can change all of it later."
       size="lg"
       footer={
         <>
@@ -48,7 +48,7 @@ export function NewProjectDialog({ open, onClose, initialTitle = "" }: { open: b
             Cancel
           </Button>
           <Button variant="primary" type="submit" form="new-project" disabled={!title.trim()} busy={busy}>
-            Create project
+            Plant it
           </Button>
         </>
       }
@@ -65,7 +65,7 @@ export function NewProjectDialog({ open, onClose, initialTitle = "" }: { open: b
           <TextInput id="np-title" data-autofocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="The Case for Slowing Down" autoComplete="off" />
         </Field>
         <fieldset className="type-picker">
-          <legend className="field-label">What is it, roughly?</legend>
+          <legend className="field-label">What kind of tree?</legend>
           <div className="type-grid">
             {PROJECT_TEMPLATES.map((t) => (
               <label key={t.type} className={cx("type-option", type === t.type && "is-selected")}>
@@ -73,14 +73,14 @@ export function NewProjectDialog({ open, onClose, initialTitle = "" }: { open: b
                 <span className="type-option-label">{t.label}</span>
                 <span className="type-option-blurb">{t.blurb}</span>
                 <span className="type-option-detail">
-                  {t.structureSections.length ? `${t.structureLabel}: ${t.structureSections.join(" · ")}` : "No starting structure"}
+                  {t.structureSections.length ? `Trunk: ${t.structureSections.join(" · ")}` : "A bare trunk — shape it yourself"}
                 </span>
               </label>
             ))}
           </div>
         </fieldset>
-        <Field label="A line about it" hint="Optional. What you're circling around, in your own words." htmlFor="np-desc">
-          <TextInput id="np-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="An essay about attention and speed." />
+        <Field label="Why are you writing it?" hint="One sentence of purpose — the root everything else grows from. Optional for now." htmlFor="np-purpose">
+          <TextInput id="np-purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="To convince busy friends that slowness isn't laziness." autoComplete="off" />
         </Field>
       </form>
     </Dialog>

@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import { db } from "../../data/db";
 import { useLive } from "../../data/hooks";
 import type { EntityRef, EntityType, Link, LinkKind } from "../../data/types";
-import { href, projectPath } from "../../lib/router";
+import { entityHref } from "../project/modes";
 import { cx, truncate } from "../../lib/util";
 import { Dialog } from "../../ui/Dialog";
-import { IconAudio, IconDoc, IconIdea, IconLibrary, IconNote, IconOutline, IconSignpost, IconX, IconChecklist } from "../../ui/icons";
+import { IconAudio, IconDoc, IconLeaf, IconLibrary, IconOutline, IconSignpost, IconX, IconChecklist } from "../../ui/icons";
 import { Segmented, TextInput } from "../../ui/ui";
 import { linkLabel } from "../board/cardMeta";
 
@@ -17,9 +17,9 @@ export interface EntityInfo extends EntityRef {
 
 const ICONS: Partial<Record<EntityType, typeof IconDoc>> = {
   document: IconDoc,
-  note: IconNote,
+  note: IconLeaf,
   transcript: IconAudio,
-  card: IconIdea,
+  card: IconOutline,
   reference: IconLibrary,
   decision: IconSignpost,
   step: IconChecklist,
@@ -29,7 +29,7 @@ const ICONS: Partial<Record<EntityType, typeof IconDoc>> = {
 export function useProjectEntities(projectId: string) {
   return useLive(
     async () => {
-      const [docs, notes, transcripts, boards, cards, refs, decisions, steps] = await Promise.all([
+      const [docs, notes, transcripts, boards, cards, refs, decisions] = await Promise.all([
         db.byIndex("documents", "projectId", projectId),
         db.byIndex("notes", "projectId", projectId),
         db.byIndex("transcripts", "projectId", projectId),
@@ -37,7 +37,6 @@ export function useProjectEntities(projectId: string) {
         db.byIndex("cards", "projectId", projectId),
         db.byIndex("references", "projectId", projectId),
         db.byIndex("decisions", "projectId", projectId),
-        db.byIndex("steps", "projectId", projectId),
       ]);
       const structureId = boards.find((b) => b.kind === "structure")?.id;
       const list: EntityInfo[] = [
@@ -46,49 +45,26 @@ export function useProjectEntities(projectId: string) {
           id: c.id,
           title: c.title || truncate(c.body, 60) || "Untitled card",
           detail: c.title ? truncate(c.body, 90) : "",
-          group: c.boardId === structureId ? "Structure" : "Ideas",
+          group: c.boardId === structureId ? "On the trunk" : "Leaves",
         })),
-        ...notes.map((n) => ({ type: "note" as const, id: n.id, title: n.title || truncate(n.body, 60) || "Untitled note", detail: n.title ? truncate(n.body, 90) : "", group: "Notes" })),
+        ...notes.map((n) => ({ type: "note" as const, id: n.id, title: n.title || truncate(n.body, 60) || "Untitled leaf", detail: n.title ? truncate(n.body, 90) : "", group: n.fallen ? "Fallen leaves" : "Leaves" })),
         ...docs.map((d) => ({ type: "document" as const, id: d.id, title: d.title, detail: `${d.wordCount} words`, group: "Drafts" })),
-        ...transcripts.map((t) => ({ type: "transcript" as const, id: t.id, title: t.title, detail: truncate(t.text, 90), group: "Transcripts" })),
-        ...refs.map((r) => ({ type: "reference" as const, id: r.id, title: r.title, detail: r.summary ? truncate(r.summary, 90) : r.kind, group: "References" })),
-        ...decisions.map((d) => ({ type: "decision" as const, id: d.id, title: d.question || "Untitled decision", detail: d.status === "decided" ? "Decided" : "Open", group: "Decisions" })),
-        ...steps.map((s) => ({ type: "step" as const, id: s.id, title: s.title, detail: s.objective, group: "Process" })),
+        ...transcripts.map((t) => ({ type: "transcript" as const, id: t.id, title: t.title, detail: truncate(t.text, 90), group: "Spoken" })),
+        ...refs.map((r) => ({ type: "reference" as const, id: r.id, title: r.title, detail: r.summary ? truncate(r.summary, 90) : r.kind, group: "Roots" })),
+        ...decisions.map((d) => ({ type: "decision" as const, id: d.id, title: d.question || "Untitled choice", detail: d.status === "decided" ? "Chosen" : "Open", group: "Choices" })),
       ];
       return new Map(list.map((e) => [`${e.type}:${e.id}`, e]));
     },
     [projectId],
-    ["documents", "notes", "transcripts", "boards", "cards", "references", "decisions", "steps"],
+    ["documents", "notes", "transcripts", "boards", "cards", "references", "decisions"],
   );
 }
 
-export function entityHref(projectId: string, ref: EntityRef, extra: Record<string, string> = {}): string {
-  const p = (mode: string, q: Record<string, string>) => href(projectPath(projectId, mode), { ...q, ...extra });
-  switch (ref.type) {
-    case "document":
-      return p("write", { doc: ref.id });
-    case "note":
-      return p("capture", { note: ref.id });
-    case "transcript":
-      return p("capture", { tr: ref.id });
-    case "recording":
-      return p("capture", { rec: ref.id });
-    case "reference":
-      return p("reference", { ref: ref.id });
-    case "decision":
-      return p("discern", { decision: ref.id });
-    case "step":
-      return p("discern", { step: ref.id });
-    case "card":
-      return p("explore", { card: ref.id });
-    default:
-      return p("overview", {});
-  }
-}
+export { entityHref };
 
-export function EntityChip({ projectId, info, onRemove, kind, cardBoard }: { projectId: string; info: EntityInfo; onRemove?: () => void; kind?: LinkKind; cardBoard?: "explore" | "arrange" }) {
+export function EntityChip({ projectId, info, onRemove, kind }: { projectId: string; info: EntityInfo; onRemove?: () => void; kind?: LinkKind }) {
   const Icon = ICONS[info.type] ?? IconOutline;
-  const to = info.type === "card" && (cardBoard || info.group === "Structure") ? href(projectPath(projectId, cardBoard ?? "arrange"), { card: info.id }) : entityHref(projectId, info);
+  const to = entityHref(projectId, info);
   return (
     <span className="chip entity-chip">
       <Icon size={13} aria-hidden />

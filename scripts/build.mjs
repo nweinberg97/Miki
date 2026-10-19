@@ -129,6 +129,15 @@ async function buildSingle() {
   // Slice to the LAST </body>: the bundle itself contains "</body>" inside an export template.
   const body = html.slice(html.indexOf("<body>") + 6, html.lastIndexOf("</body>"));
   await writeFile(path.join(outdir, "miki-embed.html"), `${head.trim()}\n${body.trim()}\n`);
+  // The same page with the bundle as separate files, for hosts that prefer small pages.
+  const embedDir = path.join(outdir, "embed");
+  await mkdir(embedDir, { recursive: true });
+  const lightHtml = await renderIndexHtml({ scripts: ["miki.js"], styles: ["miki.css"], inlineJs: "", inlineCss: "" });
+  const lightHead = lightHtml.match(/<head>([\s\S]*?)<\/head>/)[1].replace(/<meta charset[^>]*>|<meta name="viewport"[^>]*>|<link rel="(manifest|icon|apple-touch-icon)"[^>]*>/g, "");
+  const lightBody = lightHtml.slice(lightHtml.indexOf("<body>") + 6, lightHtml.lastIndexOf("</body>"));
+  await writeFile(path.join(embedDir, "index.html"), `${lightHead.trim()}\n${lightBody.trim()}\n`);
+  await writeFile(path.join(embedDir, "miki.js"), jsFile.text);
+  if (cssFile) await writeFile(path.join(embedDir, "miki.css"), cssFile.text);
   console.log(`Built dist-single/miki.html (${(html.length / 1024).toFixed(0)} KB)`);
 }
 

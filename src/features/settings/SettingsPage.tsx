@@ -131,7 +131,7 @@ function BackupSection() {
       <h2 className="section-title">
         <IconDownload size={17} aria-hidden /> Backups
       </h2>
-      <p>A backup is a single file with everything in Miki. Use it to keep a copy somewhere safe, or to move your studio to another browser or device.</p>
+      <p>A backup is a single file with everything in Miki. Use it to keep a copy somewhere safe, or to move your grove to another browser or device.</p>
       <label className="check-row">
         <input type="checkbox" checked={includeAudio} onChange={(e) => setIncludeAudio(e.target.checked)} />
         <span className="grow">Include voice recordings (makes the file larger)</span>

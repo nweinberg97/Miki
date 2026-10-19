@@ -1,6 +1,6 @@
 // Domain operations. UI components call these; they never touch IndexedDB directly.
 import { db, transact, ALL_STORES, type Tx } from "./db";
-import { builtInProcess, projectTemplate } from "./templates";
+import { projectTemplate } from "./templates";
 import { uid, now } from "../lib/util";
 import { docToPlainText } from "../editor/serialize";
 import {
@@ -49,6 +49,7 @@ export interface NewProjectInput {
   title: string;
   type: ProjectType;
   description?: string;
+  purpose?: string;
   isSample?: boolean;
 }
 
@@ -67,6 +68,8 @@ export async function createProject(input: NewProjectInput): Promise<CreatedProj
     id: uid(),
     title: input.title.trim() || "Untitled project",
     description: input.description?.trim() ?? "",
+    purpose: input.purpose?.trim() ?? "",
+    audience: "",
     type: input.type,
     thread: "",
     isSample: Boolean(input.isSample),
@@ -85,20 +88,6 @@ export async function createProject(input: NewProjectInput): Promise<CreatedProj
     updatedAt: t,
   };
   const sections: Section[] = [
-    ...tpl.ideaClusters.map((title, i) => ({
-      id: uid(),
-      projectId: project.id,
-      boardId: ideasBoard.id,
-      title,
-      x: i * (CLUSTER_W + CLUSTER_GAP),
-      y: 0,
-      w: CLUSTER_W,
-      h: CLUSTER_H,
-      collapsed: false,
-      order: i,
-      createdAt: t,
-      updatedAt: t,
-    })),
     ...tpl.structureSections.map((title, i) => ({
       id: uid(),
       projectId: project.id,
@@ -115,8 +104,9 @@ export async function createProject(input: NewProjectInput): Promise<CreatedProj
     })),
   ];
   const docs: Document[] = tpl.starterDocs.map((title, i) => newDocumentRecord(project.id, title, i));
-  const procTpl = builtInProcess(tpl.processTemplateId);
-  const { process, steps } = procTpl ? buildProcess(project.id, procTpl) : { process: null, steps: [] as Step[] };
+  // Guided processes are no longer created up front; Miki asks one question at a time instead.
+  const process: Process | null = null;
+  const steps: Step[] = [];
 
   await transact(["projects", "boards", "sections", "documents", "processes", "steps"], "readwrite", (tx) => {
     tx.put("projects", project);
@@ -491,7 +481,7 @@ export async function createNote(input: { projectId?: string; title?: string; bo
   return note;
 }
 
-export async function updateNote(id: string, patch: Partial<Pick<Note, "title" | "body" | "kind" | "projectId">>): Promise<void> {
+export async function updateNote(id: string, patch: Partial<Pick<Note, "title" | "body" | "kind" | "projectId" | "fallen">>): Promise<void> {
   await transact(["notes"], "readwrite", async (tx) => {
     const n = await tx.get("notes", id);
     if (!n) throw new Error("Note not found");
@@ -1000,3 +990,47 @@ export async function setPref(key: string, value: unknown): Promise<void> {
 export type LastLocation = { mode: Mode; entityId?: string };
 
 export { ALL_STORES };
+
+/* ================================================================== migration */
+
+/**
+ * Older projects kept loose ideas as cards on a spatial "idea space". In the three-part model
+ * every captured idea is a leaf (a note), so those cards become notes — nothing is lost:
+ * titles, text, sources and connections all carry over, and trunk cards that came from them
+ * now point at the leaf instead.
+ */
+export async function migrateIdeaCards(projectId: string): Promise<number> {
+  return transact(["boards", "cards", "notes", "links"], "readwrite", async (tx) => {
+    const boards = await tx.byIndex("boards", "projectId", projectId);
+    const ideas = boards.find((b) => b.kind === "ideas");
+    if (!ideas) return 0;
+    const cards = await tx.byIndex("cards", "boardId", ideas.id);
+    if (!cards.length) return 0;
+    const map = new Map<string, string>();
+    for (const c of cards) {
+      const note: Note = {
+        id: uid(),
+        projectId,
+        title: c.title,
+        body: c.body,
+        kind: c.type === "question" ? "question" : "idea",
+        source: c.source,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+      };
+      map.set(c.id, note.id);
+      tx.put("notes", note);
+      tx.delete("cards", c.id);
+    }
+    const swap = (r: EntityRef): EntityRef => (r.type === "card" && map.has(r.id) ? { type: "note", id: map.get(r.id)! } : r);
+    for (const l of await tx.byIndex("links", "projectId", projectId)) {
+      const from = swap(l.from);
+      const to = swap(l.to);
+      if (from !== l.from || to !== l.to) tx.put("links", { ...l, from, to });
+    }
+    for (const c of await tx.byIndex("cards", "projectId", projectId)) {
+      if (c.source?.type === "card" && map.has(c.source.id)) tx.put("cards", { ...c, source: { ...c.source, type: "note", id: map.get(c.source.id)! } });
+    }
+    return cards.length;
+  });
+}

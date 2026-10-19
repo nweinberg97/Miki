@@ -1,6 +1,7 @@
-// Rule-based, dismissible nudges. Deterministic — no AI, no analysis claims.
-// Each rule looks at the project's material and, when useful, offers one next action.
-import type { Board, Card, Decision, Document, Note, Project, Recording, Section, Step, Transcript } from "../../data/types";
+// "Miki asks": one gentle, rule-based question at a time for each part of a project.
+// Deterministic — no AI, no claims of analysis. Each rule looks at the material and,
+// when useful, offers a single next step.
+import type { Card, Decision, Document, Note, Part, Project, Recording, Reference, Section, Transcript } from "../../data/types";
 
 export interface ProjectSnapshot {
   project: Project;
@@ -8,132 +9,116 @@ export interface ProjectSnapshot {
   notes: Note[];
   recordings: Recording[];
   transcripts: Transcript[];
-  boards: Board[];
-  sections: Section[];
-  cards: Card[];
+  /** Sections and cards on the trunk (the structure board). */
+  parts: Section[];
+  trunkCards: Card[];
   decisions: Decision[];
-  steps: Step[];
+  refs: Reference[];
 }
 
 export type SuggestionAction =
-  | { kind: "go"; mode: string; query?: Record<string, string> }
-  | { kind: "draft-from-structure" }
-  | { kind: "focus-thread" };
+  | { kind: "focus"; field: "purpose" | "audience" | "thread" }
+  | { kind: "go"; part: Part; query?: Record<string, string> }
+  | { kind: "record" }
+  | { kind: "add-reference" }
+  | { kind: "draft-from-trunk" };
 
 export interface Suggestion {
-  /** Stable id including the triggering entity, so dismissing one doesn't hide future ones. */
+  /** Stable id (includes the triggering entity), so dismissing one doesn't hide future ones. */
   id: string;
+  part: Part;
   text: string;
-  actionLabel: string;
-  action: SuggestionAction;
+  actionLabel?: string;
+  action?: SuggestionAction;
 }
 
 const DAY = 24 * 60 * 60 * 1000;
 
 export function suggestionsFor(s: ProjectSnapshot, now = Date.now()): Suggestion[] {
   const out: Suggestion[] = [];
-  const ideas = s.boards.find((b) => b.kind === "ideas");
-  const structure = s.boards.find((b) => b.kind === "structure");
-  const ideaCards = s.cards.filter((c) => c.boardId === ideas?.id);
-  const structureCards = s.cards.filter((c) => c.boardId === structure?.id);
-  const derivedFrom = new Set([...s.notes, ...s.cards].map((x) => x.source?.id).filter(Boolean));
+  const growing = s.notes.filter((n) => !n.fallen);
+  const leafCount = growing.length + s.recordings.filter((r) => !r.transcriptId).length;
+  const carried = new Set(s.trunkCards.map((c) => c.source?.id).filter(Boolean));
+  const p = s.project;
 
-  // A transcript nobody has pulled anything out of yet.
-  const fresh = s.transcripts.filter((t) => !derivedFrom.has(t.id) && t.text.trim().length > 80).sort((a, b) => b.createdAt - a.createdAt)[0];
+  /* ---------------- roots: intention */
+  if (!p.purpose?.trim()) {
+    out.push({ id: "roots-purpose", part: "roots", text: "What is this piece for? A sentence is enough — you can change it later.", actionLabel: "Answer", action: { kind: "focus", field: "purpose" } });
+  } else if (!p.audience?.trim()) {
+    out.push({ id: "roots-audience", part: "roots", text: "Who is it for? Picture one reader.", actionLabel: "Answer", action: { kind: "focus", field: "audience" } });
+  }
+  if (!p.thread.trim() && leafCount >= 3) {
+    out.push({
+      id: "roots-thread",
+      part: "roots",
+      text: `You have ${leafCount} leaves growing. If you had to say what this is about in one sentence, what would it be?`,
+      actionLabel: "Name the thread",
+      action: { kind: "focus", field: "thread" },
+    });
+  }
+  if ((p.type === "story" || p.type === "memoir") && !s.refs.some((r) => r.kind === "character") && leafCount >= 2) {
+    out.push({ id: "roots-people", part: "roots", text: "Who are the people in it? Add them here so they're always close at hand.", actionLabel: "Add a person", action: { kind: "add-reference" } });
+  }
+
+  /* ---------------- leaves: ideas */
+  if (leafCount === 0 && s.transcripts.length === 0) {
+    out.push({ id: "leaves-first", part: "leaves", text: "Start with what you have. Say it out loud, or jot down a single line.", actionLabel: "Talk it through", action: { kind: "record" } });
+  }
+  const derived = new Set(s.notes.map((n) => n.source?.id).filter(Boolean));
+  const fresh = s.transcripts.filter((t) => !derived.has(t.id) && !carried.has(t.id) && t.text.trim().length > 80).sort((a, b) => b.createdAt - a.createdAt)[0];
   if (fresh) {
     out.push({
-      id: `transcript-extract:${fresh.id}`,
-      text: `“${fresh.title}” is transcribed. Want to pull out the key ideas?`,
-      actionLabel: "Open transcript",
-      action: { kind: "go", mode: "capture", query: { tr: fresh.id } },
+      id: `leaves-transcript:${fresh.id}`,
+      part: "leaves",
+      text: `“${fresh.title}” is written out. Which parts are worth keeping as leaves?`,
+      actionLabel: "Open it",
+      action: { kind: "go", part: "leaves", query: { tr: fresh.id } },
+    });
+  }
+  const uncarried = growing.filter((n) => !carried.has(n.id));
+  if (uncarried.length >= 5 && s.trunkCards.length === 0) {
+    out.push({
+      id: "leaves-discern",
+      part: "leaves",
+      text: `${uncarried.length} leaves are growing. Which ones matter most? Carry those onto the trunk, and let the rest fall.`,
     });
   }
 
-  // Loose ideas floating outside any cluster.
-  const loose = ideaCards.filter((c) => !c.sectionId);
-  if (loose.length >= 4) {
+  /* ---------------- trunk: discernment */
+  if (s.trunkCards.length === 0 && leafCount > 0) {
     out.push({
-      id: `group-loose:${loose.length >= 8 ? "8" : "4"}`,
-      text: `${loose.length} ideas are floating loose. Want to give them a place?`,
-      actionLabel: "Open idea space",
-      action: { kind: "go", mode: "explore" },
+      id: "trunk-empty",
+      part: "trunk",
+      text: "Nothing on the trunk yet. Go to your leaves and carry the ones that matter here.",
+      actionLabel: "Go to Leaves",
+      action: { kind: "go", part: "leaves" },
     });
   }
-
-  // Several promising ideas but no thread.
-  const promising = s.sections.find((x) => x.boardId === ideas?.id && /promising/i.test(x.title));
-  const promisingCount = promising ? ideaCards.filter((c) => c.sectionId === promising.id).length : 0;
-  if (!s.project.thread.trim() && promisingCount >= 2) {
-    out.push({
-      id: "thread-from-promising",
-      text: `You've marked ${promisingCount} ideas as promising. What's the thread that connects them?`,
-      actionLabel: "Name the thread",
-      action: { kind: "focus-thread" },
-    });
-  } else if (!s.project.thread.trim() && s.notes.length + ideaCards.length >= 5) {
-    out.push({
-      id: "thread-from-material",
-      text: "There's a fair amount collected here. What matters most in it?",
-      actionLabel: "Name the thread",
-      action: { kind: "focus-thread" },
-    });
+  if (!p.thread.trim() && s.trunkCards.length > 0) {
+    out.push({ id: "trunk-thread", part: "trunk", text: "What's the thread holding this together? One sentence.", actionLabel: "Name it", action: { kind: "go", part: "roots", query: { focus: "thread" } } });
   }
-
-  // Unsorted notes on the project that never made it onto a board.
-  const onBoard = new Set(s.cards.map((c) => c.source?.id).filter(Boolean));
-  const unplaced = s.notes.filter((n) => !onBoard.has(n.id));
-  if (unplaced.length >= 5 && ideaCards.length < 3) {
-    out.push({
-      id: `notes-to-board:${unplaced.length >= 10 ? "10" : "5"}`,
-      text: `${unplaced.length} notes haven't been laid out yet. Seeing them side by side can help.`,
-      actionLabel: "Review notes",
-      action: { kind: "go", mode: "capture" },
-    });
-  }
-
-  // A structure with no draft yet.
   const drafted = s.docs.some((d) => d.wordCount > 30);
-  if (structureCards.length >= 3 && !drafted) {
-    out.push({
-      id: "draft-from-structure",
-      text: "There's a structure taking shape. Ready to start a draft from it?",
-      actionLabel: "Draft from structure",
-      action: { kind: "draft-from-structure" },
-    });
+  if (s.trunkCards.length >= 3 && !drafted) {
+    out.push({ id: "trunk-draft", part: "trunk", text: "There's a shape here. Ready to grow a draft from it?", actionLabel: "Grow a draft", action: { kind: "draft-from-trunk" } });
   }
-
-  // A decision left open for a while.
   const stale = s.decisions.filter((d) => d.status === "open" && now - d.createdAt > 2 * DAY).sort((a, b) => a.createdAt - b.createdAt)[0];
   if (stale) {
-    out.push({
-      id: `open-decision:${stale.id}`,
-      text: `One decision is still open: “${stale.question || "Untitled decision"}”.`,
-      actionLabel: "Revisit",
-      action: { kind: "go", mode: "discern", query: { decision: stale.id } },
-    });
+    out.push({ id: `trunk-open:${stale.id}`, part: "trunk", text: `One choice is still open: “${stale.question || "untitled"}”.`, actionLabel: "Revisit", action: { kind: "go", part: "trunk", query: { decision: stale.id } } });
   }
-
-  // A decided question without a reason recorded.
   const unexplained = s.decisions.find((d) => d.status === "decided" && !d.rationale.trim());
   if (unexplained) {
     out.push({
-      id: `decision-rationale:${unexplained.id}`,
-      text: `You chose a direction for “${unexplained.question || "a decision"}”. A sentence on why will help future you.`,
+      id: `trunk-why:${unexplained.id}`,
+      part: "trunk",
+      text: `You chose a direction for “${unexplained.question || "a choice"}”. A sentence on why will help you later.`,
       actionLabel: "Add the why",
-      action: { kind: "go", mode: "discern", query: { decision: unexplained.id } },
+      action: { kind: "go", part: "trunk", query: { decision: unexplained.id } },
     });
   }
-
-  // A step with thinking written but never closed.
-  const lingering = s.steps.find((st) => st.status === "open" && st.response.trim().length > 40 && now - st.updatedAt > DAY);
-  if (lingering) {
-    out.push({
-      id: `step-close:${lingering.id}`,
-      text: `“${lingering.title}” has some thinking in it. Is it settled enough to mark done?`,
-      actionLabel: "Open step",
-      action: { kind: "go", mode: "discern", query: { step: lingering.id } },
-    });
-  }
-
   return out;
+}
+
+/** Miki asks one thing at a time. */
+export function nextQuestion(s: ProjectSnapshot, part: Part, dismissed: string[], now = Date.now()): Suggestion | undefined {
+  return suggestionsFor(s, now).find((q) => q.part === part && !dismissed.includes(q.id));
 }

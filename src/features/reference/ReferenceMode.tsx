@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { db } from "../../data/db";
 import { useLive } from "../../data/hooks";
 import { addLink, createReference, deleteReference, removeLink, updateReference, updateReferenceField } from "../../data/repo";
 import { projectTemplate, REFERENCE_KINDS, referenceKindInfo } from "../../data/templates";
 import type { Link, Project, Reference, ReferenceKind } from "../../data/types";
-import { href, projectPath, setQuery } from "../../lib/router";
+import { href, setQuery } from "../../lib/router";
+import { partPath } from "../project/modes";
 import { useIsNarrow } from "../../lib/useMedia";
 import { useAutoField } from "../../lib/useAutoField";
 import { cx, truncate, uid } from "../../lib/util";
@@ -53,7 +54,7 @@ export function ReferenceMode({ project, query }: { project: Project; query: URL
     const info = referenceKindInfo(kind);
     try {
       const r = await createReference({ projectId: project.id, title: `New ${info.label.toLowerCase()}`, kind, fieldLabels: info.fields });
-      setQuery({ ref: r.id });
+      setQuery({ view: "sources", ref: r.id, new: null });
     } catch (e) {
       toastError(e);
     }
@@ -72,6 +73,17 @@ export function ReferenceMode({ project, query }: { project: Project; query: URL
     />
   );
 
+  // "Add a person" from Miki asks arrives as ?new=character.
+  const wanted = query.get("new") as ReferenceKind | null;
+  const handled = useRef(false);
+  useEffect(() => {
+    if (wanted && data && !handled.current && REFERENCE_KINDS.some((k) => k.kind === wanted)) {
+      handled.current = true;
+      void create(wanted);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wanted, data]);
+
   if (!data) return <div className="refs" aria-busy />;
   const showList = !narrow || !selected;
 
@@ -80,7 +92,7 @@ export function ReferenceMode({ project, query }: { project: Project; query: URL
       {showList && (
         <aside className="refs-list" aria-label="References">
           <div className="refs-list-head">
-            <h2 className="eyebrow grow">References</h2>
+            <h2 className="eyebrow grow">What it grows from</h2>
             {newMenu()}
           </div>
           <TextInput placeholder="Find…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a reference" className="material-search" />
@@ -100,7 +112,7 @@ export function ReferenceMode({ project, query }: { project: Project; query: URL
                   <ul role="list" className="refs-items">
                     {g.refs.map((r) => (
                       <li key={r.id}>
-                        <a className={cx("list-row", r.id === selected?.id && "is-active")} href={href(projectPath(project.id, "reference"), { ref: r.id })}>
+                        <a className={cx("list-row", r.id === selected?.id && "is-active")} href={href(partPath(project.id, "roots"), { view: "sources", ref: r.id })}>
                           <Icon size={15} aria-hidden className="faint" />
                           <span className="grow">
                             <span className="list-row-title" style={{ display: "block" }}>
@@ -121,14 +133,14 @@ export function ReferenceMode({ project, query }: { project: Project; query: URL
       <section className="refs-main scroll-y">
         {narrow && selected && (
           <button type="button" className="capture-back" onClick={() => setQuery({ ref: null })}>
-            <IconArrowLeft size={16} aria-hidden /> All references
+            <IconArrowLeft size={16} aria-hidden /> Everything it grows from
           </button>
         )}
         {selected ? (
           <ReferenceDetail key={selected.id} reference={selected} project={project} links={data.links} />
         ) : (
           <EmptyState icon={IconLibrary} title={tpl.referenceKinds.includes("character") ? "The people and places in the work" : "The material behind the work"} actions={newMenu("primary")}>
-            Keep characters, places, sources, themes, and arguments in one place — each linked to the scenes, ideas, and decisions it touches. Add only what helps.
+            The people, places, sources and themes this piece draws from. Each one can be connected to the leaves and trunk parts it feeds. Add only what helps.
           </EmptyState>
         )}
       </section>

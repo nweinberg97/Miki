@@ -1,3 +1,4 @@
+import { partPath } from "../project/modes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { db } from "../../data/db";
 import { useLive } from "../../data/hooks";
@@ -97,11 +98,11 @@ export function CommandPalette() {
       fn();
     };
     const commands: Result[] = [
-      { key: "c:new", group: "Actions", title: "New project", icon: IconPlus, run: () => { close(); setNewOpen(true); }, score: 0 },
-      { key: "c:capture", group: "Actions", title: "Capture a thought", detail: "C", icon: IconPen, run: go(() => openCapture({ tab: "write" })), score: 0 },
-      { key: "c:record", group: "Actions", title: "Record a voice note", detail: "R", icon: IconMic, run: go(() => openCapture({ tab: "speak" })), score: 0 },
-      { key: "c:studio", group: "Actions", title: "Go to the studio", icon: IconGrid, run: go(() => navigate("/")), score: 0 },
-      { key: "c:inbox", group: "Actions", title: "Open Unsorted", icon: IconInbox, run: go(() => navigate("/inbox")), score: 0 },
+      { key: "c:new", group: "Actions", title: "Plant a new tree (new project)", icon: IconPlus, run: () => { close(); setNewOpen(true); }, score: 0 },
+      { key: "c:capture", group: "Actions", title: "Plant a thought", detail: "C", icon: IconPen, run: go(() => openCapture({ tab: "write" })), score: 0 },
+      { key: "c:record", group: "Actions", title: "Speak a thought", detail: "R", icon: IconMic, run: go(() => openCapture({ tab: "speak" })), score: 0 },
+      { key: "c:studio", group: "Actions", title: "Go to the grove", icon: IconGrid, run: go(() => navigate("/")), score: 0 },
+      { key: "c:inbox", group: "Actions", title: "Open Seeds", icon: IconInbox, run: go(() => navigate("/seeds")), score: 0 },
       { key: "c:settings", group: "Actions", title: "Settings, backups, and storage", icon: IconSettings, run: go(() => navigate("/settings")), score: 0 },
       {
         key: "c:theme",
@@ -115,13 +116,13 @@ export function CommandPalette() {
     ];
     if (!data) return commands;
     const projectTitle = new Map(data.projects.map((p) => [p.id, p.title]));
-    const where = (pid: string) => (pid === INBOX ? "Unsorted" : (projectTitle.get(pid) ?? ""));
+    const where = (pid: string) => (pid === INBOX ? "Seeds" : (projectTitle.get(pid) ?? ""));
     if (!needle) {
       const recent = [...data.projects]
         .filter((p) => !p.archived)
         .sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)
         .slice(0, 5)
-        .map((p) => ({ key: `p:${p.id}`, group: "Recent projects", title: p.title, detail: p.thread || p.description, icon: IconGrid, run: go(() => navigate(projectPath(p.id, p.lastLocation?.mode))), score: 0 }));
+        .map((p) => ({ key: `p:${p.id}`, group: "Recent projects", title: p.title, detail: p.thread || p.description, icon: IconGrid, run: go(() => navigate(projectPath(p.id))), score: 0 }));
       return [...recent, ...commands];
     }
     const out: Result[] = commands.filter((c) => c.title.toLowerCase().includes(needle)).map((c) => ({ ...c, score: 50 }));
@@ -131,18 +132,18 @@ export function CommandPalette() {
     }
     for (const d of data.documents) {
       const s = score(d.title, d.plainText, needle);
-      if (s) out.push({ key: `d:${d.id}`, group: "Drafts", title: d.title, detail: `${where(d.projectId)} · ${s < 60 ? snippet(d.plainText, needle) : `${d.wordCount} words`}`, icon: IconDoc, run: go(() => navigate(projectPath(d.projectId, "write"), { doc: d.id })), score: s });
+      if (s) out.push({ key: `d:${d.id}`, group: "Drafts", title: d.title, detail: `${where(d.projectId)} · ${s < 60 ? snippet(d.plainText, needle) : `${d.wordCount} words`}`, icon: IconDoc, run: go(() => navigate(partPath(d.projectId, "trunk"), { view: "draft", doc: d.id })), score: s });
     }
     for (const n of data.notes) {
       const s = score(n.title, n.body, needle);
       if (s)
         out.push({
           key: `n:${n.id}`,
-          group: "Notes",
+          group: "Leaves & seeds",
           title: n.title || truncate(n.body, 60),
           detail: `${where(n.projectId)} · ${snippet(n.body, needle)}`,
           icon: IconNote,
-          run: go(() => (n.projectId === INBOX ? navigate("/inbox", { note: n.id }) : navigate(projectPath(n.projectId, "capture"), { note: n.id }))),
+          run: go(() => (n.projectId === INBOX ? navigate("/seeds", { note: n.id }) : navigate(partPath(n.projectId, "leaves"), { note: n.id }))),
           score: s,
         });
     }
@@ -151,39 +152,36 @@ export function CommandPalette() {
       if (!s) continue;
       out.push({
         key: `c:${c.id}`,
-        group: "Cards",
+        group: "On the trunk",
         title: c.title || truncate(c.body, 60),
         detail: `${where(c.projectId)} · ${snippet(c.body, needle)}`,
         icon: IconIdea,
-        run: go(async () => {
-          const b = await db.get("boards", c.boardId);
-          navigate(projectPath(c.projectId, b?.kind === "structure" ? "arrange" : "explore"), { card: c.id });
-        }),
+        run: go(() => navigate(partPath(c.projectId, "trunk"), { card: c.id })),
         score: s,
       });
     }
     for (const r of data.references) {
       const s = score(r.title, `${r.summary} ${r.body}`, needle);
-      if (s) out.push({ key: `r:${r.id}`, group: "References", title: r.title, detail: `${where(r.projectId)} · ${r.kind}`, icon: IconLibrary, run: go(() => navigate(projectPath(r.projectId, "reference"), { ref: r.id })), score: s });
+      if (s) out.push({ key: `r:${r.id}`, group: "Roots", title: r.title, detail: `${where(r.projectId)} · ${r.kind}`, icon: IconLibrary, run: go(() => navigate(partPath(r.projectId, "roots"), { view: "sources", ref: r.id })), score: s });
     }
     for (const t of data.transcripts) {
       const s = score(t.title, t.text, needle);
       if (s)
         out.push({
           key: `t:${t.id}`,
-          group: "Transcripts",
+          group: "Spoken",
           title: t.title,
           detail: `${where(t.projectId)} · ${snippet(t.text, needle)}`,
           icon: IconAudio,
-          run: go(() => (t.projectId === INBOX ? navigate("/inbox", { tr: t.id, hl: q.trim() }) : navigate(projectPath(t.projectId, "capture"), { tr: t.id }))),
+          run: go(() => (t.projectId === INBOX ? navigate("/seeds", { tr: t.id, hl: q.trim() }) : navigate(partPath(t.projectId, "leaves"), { tr: t.id, hl: q.trim() }))),
           score: s,
         });
     }
     for (const d of data.decisions) {
       const s = score(d.question, `${d.rationale} ${d.options.map((o) => o.text).join(" ")}`, needle);
-      if (s) out.push({ key: `x:${d.id}`, group: "Decisions", title: d.question || "Untitled decision", detail: where(d.projectId), icon: IconSignpost, run: go(() => navigate(projectPath(d.projectId, "discern"), { decision: d.id })), score: s });
+      if (s) out.push({ key: `x:${d.id}`, group: "Choices", title: d.question || "Untitled choice", detail: where(d.projectId), icon: IconSignpost, run: go(() => navigate(partPath(d.projectId, "trunk"), { view: "choices", decision: d.id })), score: s });
     }
-    const order = ["Actions", "Projects", "Drafts", "Notes", "Cards", "Transcripts", "References", "Decisions"];
+    const order = ["Actions", "Projects", "Drafts", "Leaves & seeds", "On the trunk", "Spoken", "Roots", "Choices"];
     return out.sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || b.score - a.score).slice(0, 60);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, data]);

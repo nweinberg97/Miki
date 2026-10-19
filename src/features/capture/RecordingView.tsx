@@ -1,8 +1,9 @@
+import { partPath } from "../project/modes";
 import { useEffect, useRef, useState } from "react";
 import { useAll, useLive, useRecord } from "../../data/hooks";
 import { createTranscript, deleteRecording, getAudio, getPref, moveToProject, setPref, updateRecording } from "../../data/repo";
 import { Menu } from "../../ui/Menu";
-import { navigate, projectPath } from "../../lib/router";
+import { navigate, } from "../../lib/router";
 import type { Project, Recording } from "../../data/types";
 import { formatBytes, formatDuration, relativeTime } from "../../lib/util";
 import { getServerStatus, parseTranscriptFile, transcribeOnServer, TranscriptionError, type ServerStatus } from "../../transcription/engines";
@@ -31,7 +32,7 @@ export function RecordingView({ recording, project, highlight, onDeleted }: { re
   const remove = async () => {
     const ok = await confirmDialog({
       title: "Delete this recording?",
-      body: "The audio and its transcript will be removed. Notes and cards you pulled from it stay.",
+      body: "The audio and its transcript will be removed. Leaves and trunk parts you kept from it stay.",
       confirmLabel: "Delete",
       tone: "danger",
     });
@@ -282,11 +283,11 @@ function MoveRecording({ recording }: { recording: Recording }) {
   const active = (projects ?? []).filter((p) => !p.archived);
   return (
     <Menu
-      label="Move to a project"
+      label="Plant in a project"
       align="start"
       trigger={(t) => (
         <Button {...t} size="sm" variant="primary" icon={IconMoveTo}>
-          Move to a project
+          Plant in…
         </Button>
       )}
       items={
@@ -296,12 +297,12 @@ function MoveRecording({ recording }: { recording: Recording }) {
               onSelect: () =>
                 void moveToProject({ type: "recording", id: recording.id }, p.id)
                   .then(() => {
-                    toast(`Moved to “${p.title}”.`);
-                    navigate(projectPath(p.id, "capture"), { rec: recording.id });
+                    toast(`Planted in “${p.title}”.`);
+                    navigate(partPath(p.id, "leaves"), { rec: recording.id });
                   })
                   .catch(toastError),
             }))
-          : [{ label: "No projects yet", disabled: true, onSelect: () => undefined }]
+          : [{ label: "No trees yet — plant one from the grove", disabled: true, onSelect: () => undefined }]
       }
     />
   );

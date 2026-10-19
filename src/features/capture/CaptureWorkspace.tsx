@@ -16,7 +16,7 @@ import { RecordingView } from "./RecordingView";
 import { TranscriptView } from "./TranscriptView";
 import "./capture.css";
 
-type Filter = "all" | "notes" | "voice";
+type Filter = "growing" | "voice" | "fallen";
 type Item =
   | { kind: "note"; id: string; at: number; note: Note }
   | { kind: "rec"; id: string; at: number; rec: Recording }
@@ -28,17 +28,22 @@ const NOTE_ICON = { note: IconNote, fragment: IconNote, idea: IconIdea, question
 export function CaptureWorkspace({ projectId, project, query, basePath, intro }: { projectId: string; project: Project | null; query: URLSearchParams; basePath: string; intro?: React.ReactNode }) {
   const { data } = useLive(
     async () => {
-      const [notes, recordings, transcripts] = await Promise.all([
+      const [notes, recordings, transcripts, boards, cards] = await Promise.all([
         db.byIndex("notes", "projectId", projectId),
         db.byIndex("recordings", "projectId", projectId),
         db.byIndex("transcripts", "projectId", projectId),
+        db.byIndex("boards", "projectId", projectId),
+        db.byIndex("cards", "projectId", projectId),
       ]);
-      return { notes, recordings, transcripts };
+      const trunk = boards.find((b) => b.kind === "structure");
+      // Leaves that have been carried onto the trunk, so the list can show it.
+      const carried = new Set(cards.filter((c) => c.boardId === trunk?.id && c.source).map((c) => c.source!.id));
+      return { notes, recordings, transcripts, carried };
     },
     [projectId],
-    ["notes", "recordings", "transcripts"],
+    ["notes", "recordings", "transcripts", "boards", "cards"],
   );
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>("growing");
   const [quick, setQuick] = useState("");
   const narrow = useIsNarrow();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -51,7 +56,10 @@ export function CaptureWorkspace({ projectId, project, query, basePath, intro }:
       ...data.recordings.map((r) => ({ kind: "rec" as const, id: r.id, at: r.createdAt, rec: r })),
       ...data.transcripts.filter((t) => !t.recordingId || !withRecording.has(t.recordingId)).map((t) => ({ kind: "tr" as const, id: t.id, at: t.createdAt, tr: t })),
     ];
-    return all.filter((i) => filter === "all" || (filter === "notes" ? i.kind === "note" : i.kind !== "note")).sort((a, b) => b.at - a.at);
+    const fallen = (i: Item) => i.kind === "note" && Boolean(i.note.fallen);
+    return all
+      .filter((i) => (filter === "fallen" ? fallen(i) : filter === "voice" ? i.kind !== "note" : !fallen(i)))
+      .sort((a, b) => b.at - a.at);
   }, [data, filter]);
 
   const selNote = query.get("note");
@@ -62,6 +70,8 @@ export function CaptureWorkspace({ projectId, project, query, basePath, intro }:
   const rec = data?.recordings.find((r) => r.id === selRec) ?? (selTr ? data?.recordings.find((r) => r.transcriptId === selTr) : undefined);
   const tr = !rec && selTr ? data?.transcripts.find((t) => t.id === selTr) : undefined;
   const hasSelection = Boolean(note || rec || tr);
+  const fallenCount = data?.notes.filter((n) => n.fallen).length ?? 0;
+  const seeds = !project;
   const clear = () => setQuery({ note: null, rec: null, tr: null, hl: null });
 
   const addQuick = async () => {
@@ -101,9 +111,9 @@ export function CaptureWorkspace({ projectId, project, query, basePath, intro }:
             <TextArea
               minRows={2}
               maxHeight={200}
-              placeholder="Start with what you have…"
+              placeholder={seeds ? "Plant a thought — it can wait here until you know where it belongs…" : "A new leaf — a line, a question, a memory…"}
               value={quick}
-              aria-label="Quick note"
+              aria-label={seeds ? "Plant a thought" : "Add a leaf"}
               onChange={(e) => setQuick(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -117,10 +127,10 @@ export function CaptureWorkspace({ projectId, project, query, basePath, intro }:
               <span className="grow" />
               <IconButton icon={IconImport} label="Import a transcript file (.txt, .vtt, .srt)" size="sm" onClick={() => fileRef.current?.click()} />
               <Button size="sm" icon={IconMic} onClick={() => openCapture({ tab: "speak", projectId })}>
-                Record
+                Speak
               </Button>
               <Button size="sm" variant="primary" disabled={!quick.trim()} onClick={() => void addQuick()}>
-                Save
+                {seeds ? "Plant" : "Add leaf"}
               </Button>
             </div>
             <input
@@ -141,16 +151,22 @@ export function CaptureWorkspace({ projectId, project, query, basePath, intro }:
             value={filter}
             onChange={setFilter}
             options={[
-              { value: "all", label: "All" },
-              { value: "notes", label: "Notes" },
+              { value: "growing", label: seeds ? "All" : "Growing" },
               { value: "voice", label: "Voice" },
+              ...(fallenCount || filter === "fallen" ? [{ value: "fallen" as const, label: `Fallen · ${fallenCount}` }] : []),
             ]}
           />
           <ul className="capture-items scroll-y" role="list">
             {items.length === 0 && (
               <li>
-                <EmptyState compact icon={IconCapture} title={filter === "voice" ? "No recordings yet" : "Nothing captured yet"}>
-                  {filter === "voice" ? "Talk an idea through — Miki keeps the audio and helps you pull out what matters." : "Jot something above, or press C anywhere."}
+                <EmptyState compact icon={IconCapture} title={filter === "voice" ? "Nothing spoken yet" : filter === "fallen" ? "No fallen leaves" : seeds ? "No seeds waiting" : "No leaves yet"}>
+                  {filter === "voice"
+                    ? "Talk an idea through. Miki keeps the audio, and you choose which parts are worth keeping."
+                    : filter === "fallen"
+                      ? "Leaves you let fall rest here. They're never deleted, and you can pick any of them back up."
+                      : seeds
+                        ? "Thoughts you plant without a project wait here. Press C anywhere to plant one."
+                        : "Let ideas come freely — more than you need. Write one above, or press R to speak."}
                 </EmptyState>
               </li>
             )}
@@ -169,7 +185,13 @@ export function CaptureWorkspace({ projectId, project, query, basePath, intro }:
                         <span className="capture-item-meta">
                           {i.note.kind !== "note" && `${i.note.kind} · `}
                           {relativeTime(i.at)}
-                          {i.note.source && " · from a recording"}
+                          {i.note.source?.type === "transcript" && " · spoken"}
+                          {data?.carried.has(i.note.id) && (
+                            <>
+                              {" "}
+                              <Badge tone="moss">on the trunk</Badge>
+                            </>
+                          )}
                         </span>
                       </span>
                     </a>
@@ -221,7 +243,7 @@ export function CaptureWorkspace({ projectId, project, query, basePath, intro }:
         <section className="capture-detail scroll-y" aria-label="Selected item">
           {narrow && hasSelection && (
             <button type="button" className="capture-back" onClick={clear}>
-              <IconArrowLeft size={16} aria-hidden /> All captures
+              <IconArrowLeft size={16} aria-hidden /> {seeds ? "All seeds" : "All leaves"}
             </button>
           )}
           {note ? (
@@ -233,10 +255,14 @@ export function CaptureWorkspace({ projectId, project, query, basePath, intro }:
               <TranscriptView key={tr.id} transcript={tr} project={project} highlight={hl} />
             </div>
           ) : (selNote || selRec || selTr) && data ? (
-            <EmptyState compact title="That item isn't here">It may have been deleted or moved to another project.</EmptyState>
+            <EmptyState compact title="That isn't here">It may have been deleted or planted in another project.</EmptyState>
+          ) : seeds ? (
+            <EmptyState icon={IconCapture} title="Seeds wait here">
+              Not every thought knows where it belongs yet. Open one to plant it in a project when it's clear — or leave it be.
+            </EmptyState>
           ) : (
-            <EmptyState icon={IconCapture} title="Capture before you organize">
-              Write or talk your way into it. Select anything on the left to shape it into notes, cards, or a draft — with a link back to where it came from.
+            <EmptyState icon={IconCapture} title="Let it grow">
+              A tree brings life — more leaves than it needs. Open a leaf to carry it onto the trunk, add it to the draft, or let it fall. Nothing is thrown away.
             </EmptyState>
           )}
         </section>

@@ -1,21 +1,71 @@
-import type { Mode } from "../../data/types";
-import { IconCapture, IconCompass, IconExplore, IconLibrary, IconOutline, IconPen, IconSignpost } from "../../ui/icons";
+import type { EntityRef, Mode, Part, Project } from "../../data/types";
+import { href, projectPath } from "../../lib/router";
 
-/** The ways of working inside a project. Same material, different views. */
-export const MODES: { mode: Mode; label: string; hint: string; icon: typeof IconPen; key: string }[] = [
-  { mode: "overview", label: "Overview", hint: "The thread, where you left off, and what's next", icon: IconCompass, key: "1" },
-  { mode: "capture", label: "Capture", hint: "Notes, fragments, and voice", icon: IconCapture, key: "2" },
-  { mode: "explore", label: "Explore", hint: "The idea space: gather and sort what you have", icon: IconExplore, key: "3" },
-  { mode: "arrange", label: "Arrange", hint: "Give the work a shape and sequence", icon: IconOutline, key: "4" },
-  { mode: "write", label: "Write", hint: "Drafts and the editor", icon: IconPen, key: "5" },
-  { mode: "discern", label: "Discern", hint: "Work through decisions, step by step", icon: IconSignpost, key: "6" },
-  { mode: "reference", label: "Reference", hint: "Characters, sources, places, and themes", icon: IconLibrary, key: "7" },
+/**
+ * 三木 — three trees, three principles. Every project has three parts:
+ *   根 Roots  — intention: what it's for, who it's for, what it grows from
+ *   葉 Leaves — ideas: everything captured, spoken or written; fallen leaves too
+ *   幹 Trunk  — discernment: the thread, what you carry in order, your choices, the draft
+ */
+export const PARTS: { part: Part; kanji: string; label: string; principle: string; line: string; key: string }[] = [
+  { part: "roots", kanji: "根", label: "Roots", principle: "Intention", line: "Why this piece exists, and who it's for.", key: "1" },
+  { part: "leaves", kanji: "葉", label: "Leaves", principle: "Ideas", line: "Everything you've captured. Let it grow freely.", key: "2" },
+  { part: "trunk", kanji: "幹", label: "Trunk", principle: "Discernment", line: "What you choose to carry, in order — and the draft.", key: "3" },
 ];
 
-export function modeLabel(mode: Mode | undefined): string {
-  return MODES.find((m) => m.mode === mode)?.label ?? "Overview";
+export function partInfo(part: Part) {
+  return PARTS.find((p) => p.part === part)!;
 }
 
-export function isMode(v: string | undefined): v is Mode {
-  return MODES.some((m) => m.mode === v);
+/** Map any mode name (including older URLs) onto one of the three parts. */
+export function toPart(mode: string | undefined, project?: Project): Part {
+  switch (mode) {
+    case "roots":
+    case "reference":
+      return "roots";
+    case "leaves":
+    case "capture":
+    case "explore":
+      return "leaves";
+    case "trunk":
+    case "arrange":
+    case "write":
+    case "discern":
+      return "trunk";
+    default:
+      // No part given: start where the work is. Unrooted projects begin at the roots.
+      if (project && !project.purpose?.trim() && !project.thread.trim()) return "roots";
+      return project?.lastLocation?.mode ? toPart(project.lastLocation.mode) : "leaves";
+  }
+}
+
+export function partLabel(mode: Mode | undefined): string {
+  return mode ? partInfo(toPart(mode)).label : "Leaves";
+}
+
+export const partPath = (projectId: string, part: Part) => projectPath(projectId, part);
+
+/** Where a piece of project material lives. */
+export function entityHref(projectId: string, ref: EntityRef, extra: Record<string, string> = {}): string {
+  const at = (part: Part, q: Record<string, string>) => href(partPath(projectId, part), { ...q, ...extra });
+  switch (ref.type) {
+    case "document":
+      return at("trunk", { view: "draft", doc: ref.id });
+    case "card":
+      return at("trunk", { view: "shape", card: ref.id });
+    case "decision":
+      return at("trunk", { view: "choices", decision: ref.id });
+    case "step":
+      return at("trunk", {});
+    case "note":
+      return at("leaves", { note: ref.id });
+    case "transcript":
+      return at("leaves", { tr: ref.id });
+    case "recording":
+      return at("leaves", { rec: ref.id });
+    case "reference":
+      return at("roots", { view: "sources", ref: ref.id });
+    default:
+      return at("roots", {});
+  }
 }

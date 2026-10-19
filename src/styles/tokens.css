@@ -1,79 +1,88 @@
 /* Fonts are self-hosted (SIL Open Font License) so Miki works offline and never calls a font CDN. */
+/* Fonts are self-hosted (SIL Open Font License), subset to Latin plus the kanji Miki uses (三木 根 葉 幹 森 …). */
 @font-face {
-  font-family: "Fraunces";
-  src: url("../assets/fonts/Fraunces.woff") format("woff");
-  font-weight: 300 700;
+  font-family: "Shippori Mincho";
+  src: url("../assets/fonts/ShipporiMincho-Regular.woff") format("woff");
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "Fraunces";
-  src: url("../assets/fonts/Fraunces-Italic.woff") format("woff");
-  font-weight: 300 700;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Literata";
-  src: url("../assets/fonts/Literata.woff") format("woff");
-  font-weight: 400 700;
+  font-family: "Shippori Mincho";
+  src: url("../assets/fonts/ShipporiMincho-SemiBold.woff") format("woff");
+  font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "Literata";
-  src: url("../assets/fonts/Literata-Italic.woff") format("woff");
-  font-weight: 400 700;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Instrument Sans";
-  src: url("../assets/fonts/InstrumentSans.woff") format("woff");
-  font-weight: 400 700;
+  font-family: "Shippori Mincho";
+  src: url("../assets/fonts/ShipporiMincho-Bold.woff") format("woff");
+  font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "Instrument Sans";
-  src: url("../assets/fonts/InstrumentSans-Italic.woff") format("woff");
-  font-weight: 400 700;
-  font-style: italic;
+  font-family: "Zen Kaku Gothic New";
+  src: url("../assets/fonts/ZenKakuGothicNew-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Zen Kaku Gothic New";
+  src: url("../assets/fonts/ZenKakuGothicNew-Medium.woff") format("woff");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Zen Kaku Gothic New";
+  src: url("../assets/fonts/ZenKakuGothicNew-Bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
   font-display: swap;
 }
 
 :root {
   color-scheme: light;
   /* Paper, stone, ink, and moss. */
-  --paper: #f7f5f0;
-  --paper-deep: #f1eee7;
-  --surface: #ffffff;
-  --surface-2: #fbfaf7;
-  --sunken: #eeebe3;
-  --ink: #252722;
-  --ink-2: #464842;
-  --muted: #686a63;
-  --faint: #9a9b94;
-  --border: #e5e2da;
-  --border-strong: #d4d0c5;
-  --moss: #5f6e52;
-  --moss-hover: #526047;
-  --moss-ink: #3c4733;
-  --moss-soft: #edf0e8;
-  --moss-wash: #f4f6f1;
-  --warm: #d9b58c;
-  --warm-ink: #8a5f2f;
-  --warm-soft: #f7ede0;
+  --paper: #eef0e9;
+  --paper-deep: #e6e9e0;
+  --surface: #f9faf6;
+  --surface-2: #f4f6f0;
+  --sunken: #e2e6db;
+  --ink: #1f2a22;
+  --ink-2: #3b463a;
+  --muted: #5b6b57;
+  --faint: #879383;
+  --border: #d5dbce;
+  --border-strong: #c3cbbb;
+  --moss: #3e6b3a;
+  --moss-hover: #335a30;
+  --moss-ink: #2f4a2c;
+  --moss-soft: #dce6cf;
+  --moss-wash: #e7eddf;
+  --warm: #c9a27a;
+  --warm-ink: #6b4f3a;
+  --warm-soft: #ece3d4;
   --danger: #a4493d;
-  --danger-soft: #f8e9e5;
-  --focus: #5f6e52;
-  --selection: rgba(95, 110, 82, 0.18);
-  --scrim: rgba(28, 29, 26, 0.32);
-  --grid-dot: rgba(37, 39, 34, 0.09);
+  --danger-soft: #f3e2dc;
+  --focus: #3e6b3a;
+  --selection: rgba(127, 163, 90, 0.28);
+  --scrim: rgba(23, 30, 25, 0.38);
+  --grid-dot: rgba(31, 42, 34, 0.09);
+  --bark: #6b4f3a;
+  --leaf: #7fa35a;
+  --leaf-2: #9bbf5e;
+  --leaf-3: #5e8a47;
+  --soil: #ded5c4;
+  --fallen: #c9a86a;
+  --night: #1f2a22;
+  --on-night: #eef0e9;
 
-  --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-  --font-prose: "Literata", "Iowan Old Style", Charter, Georgia, serif;
-  --font-ui: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "Iowan Old Style", Georgia, serif;
+  --font-prose: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "Iowan Old Style", Georgia, serif;
+  --font-ui: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", ui-sans-serif, system-ui, sans-serif;
 
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
@@ -106,31 +115,39 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --paper: #1b1c19;
-  --paper-deep: #171815;
-  --surface: #23241f;
-  --surface-2: #20211d;
-  --sunken: #151613;
-  --ink: #ecebe4;
-  --ink-2: #cfcec6;
-  --muted: #a3a39a;
-  --faint: #75766f;
-  --border: #33342e;
-  --border-strong: #45463f;
-  --moss: #a7b894;
-  --moss-hover: #b9c8a7;
-  --moss-ink: #c9d6b9;
-  --moss-soft: #2b3226;
-  --moss-wash: #23271f;
-  --warm: #d9b58c;
-  --warm-ink: #e2c39f;
-  --warm-soft: #3a3024;
+  --paper: #171d19;
+  --paper-deep: #131815;
+  --surface: #1f2621;
+  --surface-2: #1b221d;
+  --sunken: #111612;
+  --ink: #e7ece2;
+  --ink-2: #c9d2c3;
+  --muted: #a1ad9b;
+  --faint: #727e6e;
+  --border: #2d3630;
+  --border-strong: #3d4840;
+  --moss: #a6c785;
+  --moss-hover: #b9d59b;
+  --moss-ink: #c4dcab;
+  --moss-soft: #2a3726;
+  --moss-wash: #222b20;
+  --warm: #c9a27a;
+  --warm-ink: #ddbf9c;
+  --warm-soft: #3a3127;
   --danger: #e08a7d;
   --danger-soft: #3a2420;
-  --focus: #a7b894;
-  --selection: rgba(167, 184, 148, 0.24);
-  --scrim: rgba(0, 0, 0, 0.5);
-  --grid-dot: rgba(236, 235, 228, 0.07);
+  --focus: #a6c785;
+  --selection: rgba(166, 199, 133, 0.26);
+  --scrim: rgba(0, 0, 0, 0.55);
+  --grid-dot: rgba(231, 236, 226, 0.07);
+  --bark: #a07c5e;
+  --leaf: #7fa35a;
+  --leaf-2: #9bbf5e;
+  --leaf-3: #5e8a47;
+  --soil: #2b2620;
+  --fallen: #b08f55;
+  --night: #0f140f;
+  --on-night: #e7ece2;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
   --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.3), 0 24px 60px -20px rgba(0, 0, 0, 0.7);
@@ -139,31 +156,39 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --paper: #1b1c19;
-    --paper-deep: #171815;
-    --surface: #23241f;
-    --surface-2: #20211d;
-    --sunken: #151613;
-    --ink: #ecebe4;
-    --ink-2: #cfcec6;
-    --muted: #a3a39a;
-    --faint: #75766f;
-    --border: #33342e;
-    --border-strong: #45463f;
-    --moss: #a7b894;
-    --moss-hover: #b9c8a7;
-    --moss-ink: #c9d6b9;
-    --moss-soft: #2b3226;
-    --moss-wash: #23271f;
-    --warm: #d9b58c;
-    --warm-ink: #e2c39f;
-    --warm-soft: #3a3024;
+    --paper: #171d19;
+    --paper-deep: #131815;
+    --surface: #1f2621;
+    --surface-2: #1b221d;
+    --sunken: #111612;
+    --ink: #e7ece2;
+    --ink-2: #c9d2c3;
+    --muted: #a1ad9b;
+    --faint: #727e6e;
+    --border: #2d3630;
+    --border-strong: #3d4840;
+    --moss: #a6c785;
+    --moss-hover: #b9d59b;
+    --moss-ink: #c4dcab;
+    --moss-soft: #2a3726;
+    --moss-wash: #222b20;
+    --warm: #c9a27a;
+    --warm-ink: #ddbf9c;
+    --warm-soft: #3a3127;
     --danger: #e08a7d;
     --danger-soft: #3a2420;
-    --focus: #a7b894;
-    --selection: rgba(167, 184, 148, 0.24);
-    --scrim: rgba(0, 0, 0, 0.5);
-    --grid-dot: rgba(236, 235, 228, 0.07);
+    --focus: #a6c785;
+    --selection: rgba(166, 199, 133, 0.26);
+    --scrim: rgba(0, 0, 0, 0.55);
+    --grid-dot: rgba(231, 236, 226, 0.07);
+    --bark: #a07c5e;
+    --leaf: #7fa35a;
+    --leaf-2: #9bbf5e;
+    --leaf-3: #5e8a47;
+    --soil: #2b2620;
+    --fallen: #b08f55;
+    --night: #0f140f;
+    --on-night: #e7ece2;
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
     --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.3), 0 24px 60px -20px rgba(0, 0, 0, 0.7);

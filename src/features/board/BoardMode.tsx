@@ -7,7 +7,6 @@ import { setQuery } from "../../lib/router";
 import { useIsNarrow } from "../../lib/useMedia";
 import { Spinner } from "../../ui/ui";
 import { CardPanel } from "./CardPanel";
-import { IdeaCanvas } from "./IdeaCanvas";
 import { StructureBoard } from "./StructureBoard";
 import { BoardList } from "./BoardList";
 import "./board.css";
@@ -79,17 +78,15 @@ export function BoardMode({ project, kind, query }: { project: Project; kind: Bo
       </div>
     );
   }
-  if (!data) return <div className="board-loading">This project has no {kind === "ideas" ? "idea space" : "structure"} board.</div>;
+  if (!data) return <div className="board-loading">This project has no trunk yet.</div>;
 
   const closePanel = () => setQuery({ card: null });
   const open = (id: string) => setQuery({ card: id });
 
   return (
     <div className={`board-mode board-${kind}`}>
-      {narrow || (kind === "structure" && outline) ? (
+      {narrow || outline || kind === "ideas" ? (
         <BoardList project={project} data={data} kind={kind} onOpen={open} cardNoun={tpl.cardNoun} outline={outline} onToggleOutline={() => setOutline((o) => !o)} narrow={narrow} />
-      ) : kind === "ideas" ? (
-        <IdeaCanvas project={project} data={data} onOpen={open} selectedId={openCardId} />
       ) : (
         <StructureBoard project={project} data={data} onOpen={open} cardNoun={tpl.cardNoun} onToggleOutline={() => setOutline(true)} />
       )}

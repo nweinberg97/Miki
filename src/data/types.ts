@@ -5,14 +5,22 @@ export const INBOX = "inbox";
 
 export type ProjectType = "essay" | "memoir" | "story" | "book" | "exploration" | "blank";
 
-export type Mode = "overview" | "capture" | "explore" | "arrange" | "write" | "discern" | "reference";
+/** The three parts of every project (三木: three trees, three principles). */
+export type Part = "roots" | "leaves" | "trunk";
+/** Older URL names, still accepted and mapped onto the three parts. */
+export type LegacyMode = "overview" | "capture" | "explore" | "arrange" | "write" | "discern" | "reference";
+export type Mode = Part | LegacyMode;
 
 export interface Project {
   id: string;
   title: string;
   description: string;
   type: ProjectType;
-  /** The central idea, argument, or question — "the thread". */
+  /** Roots: what the piece is for. */
+  purpose?: string;
+  /** Roots: who it's for. */
+  audience?: string;
+  /** The central idea, argument, or question — "the thread", carried by the trunk. */
   thread: string;
   threadSource?: EntityRef;
   isSample: boolean;
@@ -87,6 +95,8 @@ export interface Note {
   title: string;
   body: string;
   kind: NoteKind;
+  /** A leaf the writer let fall: set aside, never deleted, and can be picked back up. */
+  fallen?: boolean;
   source?: SourceRef;
   createdAt: number;
   updatedAt: number;

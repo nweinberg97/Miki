@@ -1,8 +1,9 @@
+import { partPath } from "../project/modes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAll } from "../../data/hooks";
 import { createNote, createTranscript, getPref, saveRecording, setPref } from "../../data/repo";
 import { INBOX, type NoteKind } from "../../data/types";
-import { href, navigate, projectPath } from "../../lib/router";
+import { href, navigate, } from "../../lib/router";
 import { ui } from "../../lib/store";
 import { cx, deriveTitle, formatBytes, formatDuration, modKey, plural, wordCount } from "../../lib/util";
 import { liveDictationSupported, startLiveDictation, type LiveDictation } from "../../transcription/engines";
@@ -14,7 +15,7 @@ import { Button, Segmented, Select, TextArea, TextInput } from "../../ui/ui";
 import "./capture.css";
 
 const KINDS: { value: NoteKind; label: string }[] = [
-  { value: "note", label: "Note" },
+  { value: "note", label: "Thought" },
   { value: "idea", label: "Idea" },
   { value: "question", label: "Question" },
   { value: "quote", label: "Quote" },
@@ -29,7 +30,7 @@ export function CaptureDialog() {
   const [recordingActive, setRecordingActive] = useState(false);
   const { data: projects } = useAll("projects");
   const destinations = useMemo(
-    () => [{ value: INBOX, label: "Unsorted" }, ...(projects ?? []).filter((p) => !p.archived).sort((a, b) => b.lastOpenedAt - a.lastOpenedAt).map((p) => ({ value: p.id, label: p.title }))],
+    () => [{ value: INBOX, label: "Seeds (decide later)" }, ...(projects ?? []).filter((p) => !p.archived).sort((a, b) => b.lastOpenedAt - a.lastOpenedAt).map((p) => ({ value: p.id, label: p.title }))],
     [projects],
   );
 
@@ -49,10 +50,10 @@ export function CaptureDialog() {
   };
 
   return (
-    <Dialog open={open} onClose={() => void close()} title="Capture" hideTitle size="md" className="capture-dialog">
+    <Dialog open={open} onClose={() => void close()} title="Plant a thought" hideTitle size="md" className="capture-dialog">
       <div className="capture-top">
         <Segmented
-          label="Capture mode"
+          label="Write or speak"
           value={tab}
           onChange={(v) => {
             if (!recordingActive) setTab(v);
@@ -63,11 +64,11 @@ export function CaptureDialog() {
           ]}
         />
         <label className="capture-dest">
-          <span className="muted small">Save to</span>
+          <span className="muted small">Plant in</span>
           <Select label="Destination" value={dest} onChange={setDest} options={destinations} />
         </label>
       </div>
-      {open && (tab === "write" ? <WriteCapture dest={dest} destLabel={destinations.find((d) => d.value === dest)?.label ?? "Unsorted"} onDone={() => ui.set({ capture: null })} /> : <SpeakCapture dest={dest} onActive={setRecordingActive} onDone={() => ui.set({ capture: null })} />)}
+      {open && (tab === "write" ? <WriteCapture dest={dest} destLabel={destinations.find((d) => d.value === dest)?.label ?? "Seeds"} onDone={() => ui.set({ capture: null })} /> : <SpeakCapture dest={dest} onActive={setRecordingActive} onDone={() => ui.set({ capture: null })} />)}
     </Dialog>
   );
 }
@@ -86,10 +87,10 @@ function WriteCapture({ dest, destLabel, onDone }: { dest: string; destLabel: st
     try {
       const note = await createNote({ projectId: dest, title: deriveTitle(body).length < body.trim().length ? deriveTitle(body) : "", body: body.trim(), kind });
       onDone();
-      toast(`Saved to ${destLabel}.`, {
+      toast(dest === INBOX ? "Planted in Seeds." : `A new leaf on “${destLabel}”.`, {
         action: {
           label: "Open",
-          onClick: () => (dest === INBOX ? navigate("/inbox", { note: note.id }) : navigate(projectPath(dest, "capture"), { note: note.id })),
+          onClick: () => (dest === INBOX ? navigate("/seeds", { note: note.id }) : navigate(partPath(dest, "leaves"), { note: note.id })),
         },
       });
     } catch (e) {
@@ -104,9 +105,9 @@ function WriteCapture({ dest, destLabel, onDone }: { dest: string; destLabel: st
         minRows={5}
         maxHeight={360}
         className="capture-textarea"
-        placeholder="Start with what you have. A sentence, a question, a fragment — paste anything."
+        placeholder="What's taking root? A sentence, a question, a fragment — paste anything."
         value={body}
-        aria-label="Your note"
+        aria-label="Your thought"
         onChange={(e) => setBody(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -122,7 +123,7 @@ function WriteCapture({ dest, destLabel, onDone }: { dest: string; destLabel: st
           {modKey} + Enter
         </span>
         <Button variant="primary" onClick={() => void save()} disabled={!body.trim()} busy={busy}>
-          Save
+          Plant
         </Button>
       </div>
     </div>
@@ -187,7 +188,7 @@ function SpeakCapture({ dest, onActive, onDone }: { dest: string; onActive: (v: 
       }
       onActive(false);
       onDone();
-      const go = () => (dest === INBOX ? navigate("/inbox", { rec: r.id }) : navigate(projectPath(dest, "capture"), { rec: r.id }));
+      const go = () => (dest === INBOX ? navigate("/seeds", { rec: r.id }) : navigate(partPath(dest, "leaves"), { rec: r.id }));
       go();
       toast(text.trim() ? "Recording and live transcript saved." : "Recording saved on this device.");
     } catch (e) {
@@ -206,7 +207,7 @@ function SpeakCapture({ dest, onActive, onDone }: { dest: string; onActive: (v: 
           </p>
           <p className="muted small">
             You can still{" "}
-            <a className="link-btn" href={href("/inbox")} onClick={onDone}>
+            <a className="link-btn" href={href("/seeds")} onClick={onDone}>
               import a recording's transcript
             </a>{" "}
             or write the thought down.

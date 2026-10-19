@@ -1,65 +1,73 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { db } from "../../data/db";
 import { useLive } from "../../data/hooks";
+import { createNote, moveToProject } from "../../data/repo";
 import { createSampleEssay, createSampleStory } from "../../data/sample";
-import { projectTemplate } from "../../data/templates";
-import { INBOX, type Document, type Project } from "../../data/types";
-import { navigate, projectPath, href } from "../../lib/router";
+import { INBOX, type Project, type ProjectType } from "../../data/types";
+
+const KIND_SHORT: Record<ProjectType, string> = { essay: "Essay", memoir: "Memoir", story: "Story", book: "Book", exploration: "Exploration", blank: "Tree" };
+import { href, navigate, projectPath } from "../../lib/router";
 import { openCapture } from "../../lib/store";
-import { cx, plural, relativeTime, truncate } from "../../lib/util";
-import { IconArchive, IconAudio, IconBook, IconDownload, IconMic, IconMore, IconNote, IconPen, IconPencil, IconPlus, IconTrash, IconUnarchive, IconArrowRight } from "../../ui/icons";
+import { cx, deriveTitle, plural, relativeTime, truncate } from "../../lib/util";
+import { IconArchive, IconArrowRight, IconBook, IconDownload, IconMic, IconMore, IconPencil, IconTrash, IconUnarchive } from "../../ui/icons";
 import { Menu } from "../../ui/Menu";
-import { toastError } from "../../ui/toast";
-import { Badge, Button, EmptyState, IconButton, Segmented, Spinner } from "../../ui/ui";
-import { modeLabel } from "../project/modes";
+import { PartGlyph, STAGE_LABEL, Tree, stageOf, type Stage } from "../../ui/PartGlyph";
+import { toast, toastError } from "../../ui/toast";
+import { Button, EmptyState, IconButton, Spinner } from "../../ui/ui";
+import { Wordmark } from "../../ui/Logo";
+import { PARTS, partInfo, partPath, toPart } from "../project/modes";
 import { exportBackup, removeProject, renameProject, toggleArchive } from "../project/projectActions";
 import { NewProjectDialog } from "./NewProjectDialog";
-import { Wordmark } from "../../ui/Logo";
 import "./studio.css";
 
-interface StudioData {
-  projects: Project[];
-  words: Map<string, number>;
-  docs: Map<string, Document[]>;
-  inbox: { id: string; kind: "note" | "recording"; title: string; createdAt: number }[];
+interface Growth {
+  leaves: number;
+  trunk: number;
+  words: number;
+  stage: Stage;
 }
 
-async function loadStudio(): Promise<StudioData> {
-  const [projects, documents, notes, recordings] = await Promise.all([
+interface Seed {
+  id: string;
+  kind: "note" | "recording";
+  text: string;
+  createdAt: number;
+}
+
+async function loadGrove() {
+  const [projects, documents, notes, recordings, boards, cards] = await Promise.all([
     db.getAll("projects"),
     db.getAll("documents"),
-    db.byIndex("notes", "projectId", INBOX),
-    db.byIndex("recordings", "projectId", INBOX),
+    db.getAll("notes"),
+    db.getAll("recordings"),
+    db.getAll("boards"),
+    db.getAll("cards"),
   ]);
-  const words = new Map<string, number>();
-  const docs = new Map<string, Document[]>();
-  for (const d of documents) {
-    words.set(d.projectId, (words.get(d.projectId) ?? 0) + d.wordCount);
-    docs.set(d.projectId, [...(docs.get(d.projectId) ?? []), d]);
+  const trunkBoards = new Set(boards.filter((b) => b.kind === "structure").map((b) => b.id));
+  const growth = new Map<string, Growth>();
+  for (const p of projects) {
+    const leaves = notes.filter((n) => n.projectId === p.id && !n.fallen).length + recordings.filter((r) => r.projectId === p.id).length;
+    const trunk = cards.filter((c) => c.projectId === p.id && trunkBoards.has(c.boardId)).length;
+    const words = documents.filter((d) => d.projectId === p.id).reduce((n, d) => n + d.wordCount, 0);
+    growth.set(p.id, { leaves, trunk, words, stage: stageOf(p, leaves, trunk, words) });
   }
-  const inbox = [
-    ...notes.map((n) => ({ id: n.id, kind: "note" as const, title: n.title || truncate(n.body, 90), createdAt: n.createdAt })),
-    ...recordings.map((r) => ({ id: r.id, kind: "recording" as const, title: r.title, createdAt: r.createdAt })),
+  const seeds: Seed[] = [
+    ...notes.filter((n) => n.projectId === INBOX).map((n) => ({ id: n.id, kind: "note" as const, text: n.title || n.body, createdAt: n.createdAt })),
+    ...recordings.filter((r) => r.projectId === INBOX).map((r) => ({ id: r.id, kind: "recording" as const, text: r.title, createdAt: r.createdAt })),
   ].sort((a, b) => b.createdAt - a.createdAt);
-  return { projects, words, docs, inbox };
+  return { projects, growth, seeds };
 }
 
-type Sort = "recent" | "title";
-
+/** The grove: every project is a tree, and you can see how each one is growing. */
 export function StudioPage() {
-  const { data, loading, error } = useLive(loadStudio, [], ["projects", "documents", "notes", "recordings"]);
+  const { data, loading, error } = useLive(loadGrove, [], ["projects", "documents", "notes", "recordings", "boards", "cards"]);
   const [newOpen, setNewOpen] = useState(false);
-  const [sort, setSort] = useState<Sort>("recent");
-  const [showArchived, setShowArchived] = useState(false);
+  const [showResting, setShowResting] = useState(false);
   const [sampleBusy, setSampleBusy] = useState<string | null>(null);
 
-  const active = useMemo(() => (data?.projects ?? []).filter((p) => !p.archived), [data]);
-  const archived = useMemo(() => (data?.projects ?? []).filter((p) => p.archived), [data]);
-  const sorted = useMemo(() => {
-    const list = [...(showArchived ? archived : active)];
-    return sort === "title" ? list.sort((a, b) => a.title.localeCompare(b.title)) : list.sort((a, b) => Math.max(b.lastOpenedAt, b.updatedAt) - Math.max(a.lastOpenedAt, a.updatedAt));
-  }, [active, archived, sort, showArchived]);
-  const last = useMemo(() => [...active].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)[0], [active]);
+  const active = useMemo(() => (data?.projects ?? []).filter((p) => !p.archived).sort((a, b) => Math.max(b.lastOpenedAt, b.updatedAt) - Math.max(a.lastOpenedAt, a.updatedAt)), [data]);
+  const resting = useMemo(() => (data?.projects ?? []).filter((p) => p.archived), [data]);
+  const last = active[0];
 
   const openSample = async (kind: "essay" | "story") => {
     setSampleBusy(kind);
@@ -76,197 +84,154 @@ export function StudioPage() {
   if (loading && !data) {
     return (
       <div className="page" aria-busy>
-        <Spinner label="Loading projects" />
+        <Spinner label="Opening your grove" />
       </div>
     );
   }
   if (error && !data) {
     return (
       <div className="page">
-        <EmptyState title="Couldn't load your projects">{error.message}</EmptyState>
+        <EmptyState title="Couldn't open your grove">{error.message}</EmptyState>
       </div>
     );
   }
 
-  const isEmpty = active.length === 0 && archived.length === 0;
+  const isEmpty = active.length === 0 && resting.length === 0;
+  const shown = showResting ? resting : active;
 
   return (
-    <div className="page studio">
-      <header className="studio-top">
-        <div className="studio-brand-mobile">
-          <Wordmark size={22} />
-        </div>
-        <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
-        <h1 className="page-title studio-title">{isEmpty ? "Find the thread." : last ? "Pick up the thread." : "Start with what you have."}</h1>
-        {isEmpty && <p className="page-sub studio-sub">A place for your thoughts to become something. Capture rough ideas, see their shape, and turn them into finished work.</p>}
-        <div className="studio-actions">
-          <Button variant="primary" icon={IconPlus} onClick={() => setNewOpen(true)}>
-            New project
-          </Button>
-          <Button icon={IconPen} onClick={() => openCapture({ tab: "write" })}>
-            Capture a thought
-          </Button>
-          <Button icon={IconMic} onClick={() => openCapture({ tab: "speak" })}>
-            Talk it through
-          </Button>
-        </div>
-      </header>
+    <div className="grove">
+      <div className="grove-main">
+        <header className="grove-top">
+          <div className="grove-brand-mobile">
+            <Wordmark size={22} />
+          </div>
+          <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
+          <h1 className="grove-title">What's taking root today?</h1>
+          <PlantForm />
+          <p className="grove-hint">Unplanted thoughts wait in Seeds until you know which tree they belong to.</p>
+        </header>
 
-      {isEmpty ? (
-        <section className="studio-welcome">
-          <div className="welcome-steps">
-            {[
-              ["Capture", "Speak or jot a thought without deciding where it goes."],
-              ["Explore", "Spread ideas out in a bounded space and sort what's promising."],
-              ["Discern", "Choose a direction — and keep a record of why."],
-              ["Arrange & write", "Give it a sequence, then draft in a quiet editor."],
-            ].map(([t, d], i) => (
-              <div key={t} className="welcome-step">
-                <span className="welcome-num">{i + 1}</span>
-                <h2>{t}</h2>
-                <p>{d}</p>
-              </div>
-            ))}
-          </div>
-          <div className="welcome-samples panel">
-            <div>
-              <h2 className="section-title">Want to look around first?</h2>
-              <p className="muted">Open a sample project, clearly marked as a sample. Delete it whenever you like.</p>
-            </div>
-            <div className="row gap-2 wrap">
-              <Button icon={IconBook} onClick={() => void openSample("essay")} busy={sampleBusy === "essay"}>
-                Sample essay
-              </Button>
-              <Button icon={IconBook} onClick={() => void openSample("story")} busy={sampleBusy === "story"}>
-                Sample short story
-              </Button>
-            </div>
-          </div>
-        </section>
-      ) : (
-        <>
-          {last && !showArchived && <ContinueCard project={last} words={data!.words.get(last.id) ?? 0} docs={data!.docs.get(last.id) ?? []} />}
-          <div className="studio-grid-head">
-            <h2 className="section-title">{showArchived ? "Archived" : "Projects"}</h2>
-            <div className="row gap-2">
-              <Segmented
-                size="sm"
-                label="Sort projects"
-                value={sort}
-                onChange={setSort}
-                options={[
-                  { value: "recent", label: "Recent" },
-                  { value: "title", label: "A–Z" },
-                ]}
-              />
-              {(archived.length > 0 || showArchived) && (
-                <Button size="sm" variant="ghost" icon={showArchived ? IconUnarchive : IconArchive} onClick={() => setShowArchived((v) => !v)}>
-                  {showArchived ? "Active projects" : `Archived (${archived.length})`}
-                </Button>
-              )}
-            </div>
-          </div>
-          {sorted.length === 0 ? (
-            <EmptyState compact title={showArchived ? "Nothing archived" : "No active projects"}>
-              {showArchived ? "Archived projects will rest here." : "Everything is archived. Start something new, or bring one back."}
-            </EmptyState>
-          ) : (
-            <ul className="project-grid" role="list">
-              {sorted.map((p) => (
-                <ProjectCard key={p.id} project={p} words={data!.words.get(p.id) ?? 0} />
-              ))}
-              {!showArchived && (
-                <li>
-                  <button type="button" className="project-card project-card-new" onClick={() => setNewOpen(true)}>
-                    <IconPlus size={20} aria-hidden />
-                    <span>New project</span>
-                  </button>
-                </li>
-              )}
-            </ul>
-          )}
-        </>
-      )}
-
-      <section className="studio-unsorted">
-        <div className="studio-grid-head">
-          <h2 className="section-title">Unsorted</h2>
-          {(data?.inbox.length ?? 0) > 0 && (
-            <a className="link-btn" href="#/inbox">
-              View all {data!.inbox.length}
-            </a>
-          )}
-        </div>
-        {(data?.inbox.length ?? 0) === 0 ? (
-          <p className="muted studio-unsorted-empty">
-            Captures that don't belong anywhere yet land here. Press <kbd className="kbd">C</kbd> anytime to jot something down.
-          </p>
+        {isEmpty ? (
+          <Story onNew={() => setNewOpen(true)} onSample={(k) => void openSample(k)} busy={sampleBusy} />
         ) : (
-          <ul className="unsorted-list" role="list">
-            {data!.inbox.slice(0, 4).map((item) => (
-              <li key={item.id}>
-                <a className="list-row" href={href("/inbox", { [item.kind === "note" ? "note" : "rec"]: item.id })}>
-                  <span className="unsorted-icon">{item.kind === "note" ? <IconNote size={15} aria-hidden /> : <IconAudio size={15} aria-hidden />}</span>
-                  <span className="grow list-row-title">{item.title || "Untitled"}</span>
-                  <span className="list-row-meta">{relativeTime(item.createdAt)}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
+          <>
+            {last && !showResting && <Resume project={last} />}
+            <section className="grove-trees" aria-label={showResting ? "Resting trees" : "Your trees"}>
+              <div className="grove-trees-head">
+                <h2 className="grove-section-title">{showResting ? "Resting" : "Your grove"}</h2>
+                {(resting.length > 0 || showResting) && (
+                  <Button size="sm" variant="ghost" icon={showResting ? IconUnarchive : IconArchive} onClick={() => setShowResting((v) => !v)}>
+                    {showResting ? "Back to the grove" : `Resting (${resting.length})`}
+                  </Button>
+                )}
+              </div>
+              <ul className="trees" role="list">
+                {shown.map((p) => (
+                  <TreeItem key={p.id} project={p} growth={data!.growth.get(p.id)!} />
+                ))}
+                {!showResting && (
+                  <li className="tree-item">
+                    <button type="button" className="tree-link tree-new" onClick={() => setNewOpen(true)}>
+                      <Tree stage="seed" leaves={0} trunk={0} className="tree-svg" />
+                      <span className="tree-title">Plant a new tree</span>
+                      <span className="tree-meta">Start with why</span>
+                    </button>
+                  </li>
+                )}
+                {showResting && shown.length === 0 && <li className="muted">Nothing is resting.</li>}
+              </ul>
+              <div className="ground" aria-hidden />
+            </section>
+          </>
         )}
-      </section>
+      </div>
 
+      <Seeds seeds={data?.seeds ?? []} projects={active} />
       <NewProjectDialog open={newOpen} onClose={() => setNewOpen(false)} />
     </div>
   );
 }
 
-function ContinueCard({ project, words, docs }: { project: Project; words: number; docs: Document[] }) {
-  const loc = project.lastLocation;
-  const doc = loc?.mode === "write" && loc.entityId ? docs.find((d) => d.id === loc.entityId) : undefined;
-  const query = loc?.mode === "write" && doc ? { doc: doc.id } : undefined;
+function PlantForm() {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+  const plant = async () => {
+    const body = text.trim();
+    if (!body || busy) return;
+    setBusy(true);
+    try {
+      const n = await createNote({ projectId: INBOX, title: deriveTitle(body).length < body.length ? deriveTitle(body) : "", body });
+      setText("");
+      toast("Planted in Seeds.", { action: { label: "Open", onClick: () => navigate("/seeds", { note: n.id }) } });
+    } catch (e) {
+      toastError(e, "Couldn't plant that.");
+    } finally {
+      setBusy(false);
+      ref.current?.focus();
+    }
+  };
   return (
-    <a className="continue-card" href={href(projectPath(project.id, loc?.mode), query)}>
-      <div className="grow">
-        <p className="eyebrow">
-          Continue · {modeLabel(loc?.mode)}
-          {doc ? ` · ${doc.title}` : ""}
-        </p>
-        <h2 className="continue-title">{project.title}</h2>
-        {project.thread ? <p className="continue-thread">{project.thread}</p> : <p className="continue-thread muted">No thread yet — what is this really about?</p>}
-        <p className="continue-meta">
-          {plural(words, "word")} · last opened {relativeTime(project.lastOpenedAt)}
-        </p>
-      </div>
-      <span className="continue-go" aria-hidden>
-        <IconArrowRight size={20} />
+    <form
+      className="plant"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void plant();
+      }}
+    >
+      <label htmlFor="plant-input" className="sr-only">
+        Plant a thought
+      </label>
+      <input ref={ref} id="plant-input" className="plant-input" placeholder="Plant a thought — say it or type it" value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" />
+      <button type="button" className="plant-mic" aria-label="Speak it" title="Speak it (R)" onClick={() => openCapture({ tab: "speak" })}>
+        <IconMic size={22} aria-hidden />
+      </button>
+      <button type="submit" className="plant-go" disabled={!text.trim() || busy}>
+        Plant
+      </button>
+    </form>
+  );
+}
+
+function Resume({ project }: { project: Project }) {
+  const part = toPart(project.lastLocation?.mode, project);
+  const info = partInfo(part);
+  const query = part === "trunk" && project.lastLocation?.entityId ? { view: "draft", doc: project.lastLocation.entityId } : undefined;
+  return (
+    <a className="resume" href={href(partPath(project.id, part), query)}>
+      <PartGlyph part={part} size={32} className="resume-glyph" />
+      <span className="grow">
+        <span className="resume-eyebrow">
+          Pick up where you left off · {info.kanji} {info.label}
+        </span>
+        <span className="resume-title">{project.title}</span>
+        {project.thread ? <span className="resume-thread">“{truncate(project.thread, 140)}”</span> : project.purpose ? <span className="resume-thread">{truncate(project.purpose, 140)}</span> : null}
       </span>
+      <IconArrowRight size={20} aria-hidden className="resume-go" />
     </a>
   );
 }
 
-function ProjectCard({ project: p, words }: { project: Project; words: number }) {
-  const tpl = projectTemplate(p.type);
+function TreeItem({ project: p, growth }: { project: Project; growth: Growth }) {
+  const to = href(projectPath(p.id));
   return (
-    <li className="project-card-wrap">
-      <a className={cx("project-card", p.archived && "is-archived")} href={href(projectPath(p.id, p.lastLocation?.mode))}>
-        <div className="project-card-top">
-          <span className="eyebrow">{tpl.label}</span>
-          {p.isSample && <Badge tone="warm">Sample</Badge>}
-        </div>
-        <h3 className="project-card-title">{p.title}</h3>
-        <p className={cx("project-card-thread", !p.thread && !p.description && "muted")}>{p.thread ? `“${truncate(p.thread, 120)}”` : p.description ? truncate(p.description, 120) : "Still finding the thread."}</p>
-        <p className="project-card-meta">
-          {plural(words, "word")} · {relativeTime(Math.max(p.updatedAt, p.lastOpenedAt))}
-        </p>
+    <li className="tree-item">
+      <a className={cx("tree-link", p.archived && "is-resting")} href={to}>
+        <Tree stage={growth.stage} leaves={growth.leaves} trunk={growth.trunk} className="tree-svg" />
+        <span className="tree-title">{p.title}</span>
+        <span className="tree-meta">
+          {p.isSample ? "Sample " : ""}
+          {p.isSample ? KIND_SHORT[p.type].toLowerCase() : KIND_SHORT[p.type]} · {plural(growth.leaves, "leaf", "leaves")} · {STAGE_LABEL[growth.stage]}
+        </span>
       </a>
-      <div className="project-card-menu">
+      <div className="tree-menu">
         <Menu
           label={`${p.title} actions`}
           trigger={(t) => <IconButton {...t} icon={IconMore} label={`Actions for ${p.title}`} size="sm" />}
           items={[
             { label: "Rename", icon: IconPencil, onSelect: () => void renameProject(p) },
-            { label: p.archived ? "Unarchive" : "Archive", icon: p.archived ? IconUnarchive : IconArchive, onSelect: () => void toggleArchive(p) },
+            { label: p.archived ? "Wake it up" : "Let it rest (archive)", icon: p.archived ? IconUnarchive : IconArchive, onSelect: () => void toggleArchive(p) },
             { label: "Download backup", icon: IconDownload, onSelect: () => void exportBackup(p) },
             { separator: true },
             { label: "Delete…", icon: IconTrash, danger: true, onSelect: () => void removeProject(p, () => undefined) },
@@ -274,5 +239,101 @@ function ProjectCard({ project: p, words }: { project: Project; words: number })
         />
       </div>
     </li>
+  );
+}
+
+function Seeds({ seeds, projects }: { seeds: Seed[]; projects: Project[] }) {
+  return (
+    <aside className="seeds" aria-label="Seeds">
+      <div className="seeds-head">
+        <h2 className="grove-section-title">Seeds</h2>
+        <span className="muted small">not yet planted</span>
+      </div>
+      {seeds.length === 0 ? (
+        <p className="seeds-empty">
+          Nothing waiting. Plant a thought above, or press <kbd className="kbd">C</kbd> anywhere — it lands here until you know where it belongs.
+        </p>
+      ) : (
+        <ul role="list" className="seed-list">
+          {seeds.slice(0, 5).map((s) => (
+            <li key={s.id} className="seed">
+              <a className="seed-text" href={href("/seeds", { [s.kind === "note" ? "note" : "rec"]: s.id })}>
+                {truncate(s.text, 140) || "Untitled"}
+              </a>
+              <div className="seed-foot">
+                <span>
+                  {s.kind === "note" ? "Written" : "Spoken"} · {relativeTime(s.createdAt)}
+                </span>
+                <Menu
+                  label="Plant in a project"
+                  trigger={(t) => (
+                    <button {...t} type="button" className="seed-plant">
+                      Plant in…
+                    </button>
+                  )}
+                  items={
+                    projects.length
+                      ? projects.map((p) => ({
+                          label: p.title,
+                          onSelect: () =>
+                            void moveToProject({ type: s.kind, id: s.id }, p.id)
+                              .then(() => toast(`Planted in “${p.title}”.`, { action: { label: "Go", onClick: () => navigate(partPath(p.id, "leaves"), { [s.kind === "note" ? "note" : "rec"]: s.id }) } }))
+                              .catch(toastError),
+                        }))
+                      : [{ label: "Plant a tree first", disabled: true, onSelect: () => undefined }]
+                  }
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {seeds.length > 5 && (
+        <a className="link-btn" href="#/seeds">
+          All {seeds.length} seeds
+        </a>
+      )}
+    </aside>
+  );
+}
+
+/** First visit: the story of the three trees, then a way in. */
+function Story({ onNew, onSample, busy }: { onNew: () => void; onSample: (k: "essay" | "story") => void; busy: string | null }) {
+  const copy: Record<string, [string, string, string]> = {
+    roots: ["Rooted", "Know why before you write. Every piece begins in the ground: what it's for, and who it's for.", "Each project starts with its roots — one sentence of purpose that everything else grows from."],
+    leaves: ["Leafing", "A tree brings life. Let ideas come freely — spoken, scribbled, more than you need.", "Speak or jot a thought from anywhere. Leaves you let fall are kept, and can feed what grows next."],
+    trunk: ["Standing", "A tree holds all of it and still stands. Choose what you carry. The trunk is your thread.", "Carry the leaves that matter onto the trunk, in order. The draft grows along it."],
+  };
+  return (
+    <section className="story" aria-label="How Miki works">
+      <p className="story-kicker">mi · three &nbsp; ki · tree</p>
+      <h2 className="story-title">Three trees. A place for your thoughts to take root.</h2>
+      <div className="story-cols">
+        {PARTS.map((p) => (
+          <div key={p.part} className="story-col">
+            <PartGlyph part={p.part} size={64} />
+            <h3 className="story-col-title">
+              <span className="story-kanji">{p.kanji}</span> {copy[p.part][0]}
+            </h3>
+            <p className="story-principle">{p.principle}</p>
+            <p className="story-line">{copy[p.part][1]}</p>
+            <p className="story-how">{copy[p.part][2]}</p>
+          </div>
+        ))}
+      </div>
+      <div className="story-foot">
+        <Button variant="primary" onClick={onNew}>
+          Plant your first tree
+        </Button>
+        <span className="muted small">or look around a sample first:</span>
+        <Button size="sm" icon={IconBook} onClick={() => onSample("essay")} busy={busy === "essay"}>
+          An essay
+        </Button>
+        <Button size="sm" icon={IconBook} onClick={() => onSample("story")} busy={busy === "story"}>
+          A short story
+        </Button>
+      </div>
+      <p className="story-coda">Rooted. Leafing. Standing. Three trees make a forest — 森. This is your grove.</p>
+    </section>
   );
 }

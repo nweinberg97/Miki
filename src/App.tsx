@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { openDB, diagnostics } from "./data/db";
-import { getPref } from "./data/repo";
+import { openDB, diagnostics, db } from "./data/db";
+import { getPref, migrateIdeaCards, setPref } from "./data/repo";
 import { useRoute, navigate } from "./lib/router";
 import { ui, openCapture } from "./lib/store";
 import { isTypingTarget } from "./lib/util";
@@ -27,6 +27,11 @@ export function App() {
       .then(async () => {
         const failing = await getPref<StoreName[]>("diagnostics:failWrites", []);
         failing.forEach((s) => diagnostics.failWritesTo.add(s));
+        // One-time move to the three-part model: loose idea cards become leaves.
+        if (!(await getPref<boolean>("migrated:leaves:v1", false))) {
+          for (const p of await db.getAll("projects")) await migrateIdeaCards(p.id);
+          await setPref("migrated:leaves:v1", true);
+        }
         setBoot("ready");
       })
       .catch((err: Error) => setBoot(err));
@@ -69,7 +74,7 @@ export function App() {
     return (
       <div className="boot" aria-busy>
         <LogoMark size={36} />
-        <Spinner size={18} label="Opening your studio" />
+        <Spinner size={18} label="Opening your grove" />
       </div>
     );
   }
@@ -78,7 +83,7 @@ export function App() {
       <div className="boot">
         <EmptyState
           icon={IconWarning}
-          title="Miki can't open your studio"
+          title="Miki can't open your grove"
           actions={
             <Button variant="primary" onClick={() => location.reload()}>
               Reload
@@ -127,7 +132,7 @@ function Routes() {
     document.getElementById("main")?.scrollTo?.(0, 0);
   }, [route.path]);
   if (!first) return <StudioPage />;
-  if (first === "inbox") return <InboxPage />;
+  if (first === "seeds" || first === "inbox") return <InboxPage />;
   if (first === "settings") return <SettingsPage />;
   if (first === "p" && second) return <ProjectPage projectId={second} mode={third} query={route.query} />;
   return (
@@ -135,7 +140,7 @@ function Routes() {
       title="Nothing here"
       actions={
         <Button variant="primary" onClick={() => navigate("/")}>
-          Back to the studio
+          Back to the grove
         </Button>
       }
     >

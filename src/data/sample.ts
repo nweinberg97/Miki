@@ -15,20 +15,21 @@ import {
   updateDecision,
   updateProject,
   updateReference,
-  updateStep,
+  updateNote,
 } from "./repo";
 import { db } from "./db";
 import type { Section } from "./types";
 
 export async function createSampleEssay(): Promise<string> {
-  const { project, ideasBoard, structureBoard, process } = await createProject({
+  const { project, structureBoard } = await createProject({
     title: "The Case for Slowing Down",
     type: "essay",
-    description: "An essay about attention, speed, and what we lose when everything is optimized.",
+    purpose: "To give busy readers permission to read slower — and show them why it works.",
+    description: "Around 2,000 words, for my newsletter.",
     isSample: true,
   });
+  await updateProject(project.id, { audience: "Newsletter readers who feel guilty about the pile of books by their bed." });
   const sections = (await db.byIndex("sections", "projectId", project.id)) as Section[];
-  const cluster = (t: string) => sections.find((s) => s.boardId === ideasBoard.id && s.title === t)!;
   const col = (t: string) => sections.find((s) => s.boardId === structureBoard.id && s.title === t)!;
 
   const transcriptText =
@@ -50,16 +51,18 @@ export async function createSampleEssay(): Promise<string> {
   await createNote({ projectId: project.id, title: "", body: "Ask: is slowness a luxury? Who gets to be slow?", kind: "question" });
   await createNote({ projectId: project.id, title: "Image", body: "My grandmother shelling peas on the porch — the only time she ever sat still.", kind: "idea" });
 
+  // Leaves: everything captured, including one the writer let fall.
   const ideas = [
-    { t: "Good friction", b: "The kind that makes you stay with something long enough for it to change you.", s: "Promising" },
-    { t: "Speed as a default setting", b: "Apps count pages; newsletters tell you the minutes. The design assumes faster is better.", s: "Promising" },
-    { t: "Slowness is a privilege?", b: "Counter-argument: not everyone can afford to slow down.", s: "Collecting", type: "question" as const },
-    { t: "Productivity guilt", b: "Too broad. Probably a different essay.", s: "Set aside" },
-    { t: "Memory needs time", b: "Look for research on spacing and consolidation.", s: "Collecting", type: "research" as const },
+    { t: "Good friction", b: "The kind that makes you stay with something long enough for it to change you.", kind: "idea" as const },
+    { t: "Speed as a default setting", b: "Apps count pages; newsletters tell you the minutes. The design assumes faster is better.", kind: "idea" as const },
+    { t: "Memory needs time", b: "Look for research on spacing and consolidation.", kind: "note" as const },
+    { t: "Productivity guilt", b: "Too broad. Probably a different essay.", kind: "idea" as const, fallen: true },
   ];
-  const ideaCards = [];
+  const leaves = [];
   for (const i of ideas) {
-    ideaCards.push(await createCard({ projectId: project.id, boardId: ideasBoard.id, sectionId: cluster(i.s).id, title: i.t, body: i.b, type: i.type ?? "idea" }));
+    const n = await createNote({ projectId: project.id, title: i.t, body: i.b, kind: i.kind });
+    if (i.fallen) await updateNote(n.id, { fallen: true });
+    leaves.push(n);
   }
 
   const outline: [string, string, string][] = [
@@ -70,7 +73,9 @@ export async function createSampleEssay(): Promise<string> {
     ["Close", "The porch", "Return to the image of my grandmother shelling peas."],
   ];
   for (const [section, title, body] of outline) {
-    await createCard({ projectId: project.id, boardId: structureBoard.id, sectionId: col(section).id, title, body, type: "idea" });
+    // "Understanding needs friction" was carried from the "Good friction" leaf.
+    const source = title === "Understanding needs friction" ? { type: "note" as const, id: leaves[0].id, excerpt: leaves[0].body } : undefined;
+    await createCard({ projectId: project.id, boardId: structureBoard.id, sectionId: col(section).id, title, body, type: "idea", source });
   }
 
   const decision = await createDecision(project.id, { question: "What is this essay fundamentally arguing?" });
@@ -86,24 +91,12 @@ export async function createSampleEssay(): Promise<string> {
     next: "Outline around throughput vs. friction.",
     status: "decided",
   });
-  await addLink(project.id, { type: "decision", id: decision.id }, { type: "card", id: ideaCards[0].id }, "related");
-  await addLink(project.id, { type: "card", id: ideaCards[1].id }, { type: "card", id: ideaCards[0].id }, "supports");
-  await addLink(project.id, { type: "card", id: ideaCards[2].id }, { type: "card", id: ideaCards[0].id }, "contradicts");
+  await addLink(project.id, { type: "decision", id: decision.id }, { type: "note", id: leaves[0].id }, "related");
+  await addLink(project.id, { type: "note", id: leaves[1].id }, { type: "note", id: leaves[0].id }, "supports");
   await updateProject(project.id, {
     thread: "Our tools are built for throughput, but understanding needs friction.",
     threadSource: { type: "decision", id: decision.id },
   });
-
-  if (process) {
-    const steps = await db.byIndex("steps", "processId", process.id);
-    const byTitle = (t: string) => steps.find((s) => s.title === t);
-    const s1 = byTitle("Define the objective");
-    if (s1) await updateStep(s1.id, { response: "Make a reader notice how their tools shape their attention — and give them permission to read slower.", status: "done" });
-    const s2 = byTitle("Audience and effect");
-    if (s2) await updateStep(s2.id, { response: "Readers of my Substack who feel guilty about their reading pile. They should feel relieved, not lectured.", status: "done" });
-    const s4 = byTitle("Choose the central argument");
-    if (s4) await updateStep(s4.id, { decisionId: decision.id, status: "done", response: "Settled on throughput vs. friction." });
-  }
 
   await createSource(project.id, "Make It Stick (Brown, Roediger, McDaniel)", "Effortful retrieval and spacing improve long-term retention.");
   const doc = buildDoc([
@@ -133,12 +126,14 @@ async function createSource(projectId: string, title: string, point: string) {
 }
 
 export async function createSampleStory(): Promise<string> {
-  const { project, ideasBoard, structureBoard } = await createProject({
+  const { project, structureBoard } = await createProject({
     title: "Night Ferry",
     type: "story",
-    description: "A short story about two strangers on the last crossing of the night.",
+    purpose: "To write about grief that hasn't found words yet — through two strangers who never quite say it.",
+    description: "A short story, under 5,000 words.",
     isSample: true,
   });
+  await updateProject(project.id, { audience: "Readers of quiet literary fiction.", thread: "Some things are carried, not said." });
   const sections = await db.byIndex("sections", "projectId", project.id);
   const col = (t: string) => sections.find((s) => s.boardId === structureBoard.id && s.title === t)!;
   const mara = await createReference({ projectId: project.id, title: "Mara", kind: "character", fieldLabels: ["Wants", "Fears", "Relationships"] });
@@ -164,7 +159,8 @@ export async function createSampleStory(): Promise<string> {
     const c = await createCard({ projectId: project.id, boardId: structureBoard.id, sectionId: col(section).id, title, body, type: "scene" });
     for (const r of refs) await addLink(project.id, { type: "card", id: c.id }, { type: "reference", id: r }, "features");
   }
-  await createCard({ projectId: project.id, boardId: ideasBoard.id, title: "What if Eli never says it aloud?", body: "The urn could stay unexplained.", type: "question" });
-  await createCard({ projectId: project.id, boardId: ideasBoard.id, title: "The sound of the engine changing", body: "Use it to mark the middle of the crossing.", type: "idea" });
+  await createNote({ projectId: project.id, title: "What if Eli never says it aloud?", body: "The urn could stay unexplained.", kind: "question" });
+  await createNote({ projectId: project.id, title: "The sound of the engine changing", body: "Use it to mark the middle of the crossing.", kind: "idea" });
+  await createNote({ projectId: project.id, title: "", body: "The fluorescent hum in the cabin, like a held breath.", kind: "note" });
   return project.id;
 }

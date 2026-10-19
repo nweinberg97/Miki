@@ -4,7 +4,7 @@ import { INBOX } from "../data/types";
 import { href, useRoute } from "../lib/router";
 import { openCapture, ui } from "../lib/store";
 import { cx } from "../lib/util";
-import { IconGrid, IconInbox, IconMic, IconPen, IconSearch, IconSettings } from "../ui/icons";
+import { IconGrove, IconMic, IconPen, IconSearch, IconSettings, IconSprout } from "../ui/icons";
 import { LogoMark } from "../ui/Logo";
 
 function useInboxCount() {
@@ -28,23 +28,24 @@ export function Rail() {
   const route = useRoute();
   const count = useInboxCount();
   const first = route.segments[0];
+  const isSeeds = first === "seeds" || first === "inbox";
   const projectId = currentProjectId(route.path);
   return (
     <nav className="rail" aria-label="Main">
-      <a href="#/" className="rail-logo" aria-label="Miki — studio home">
+      <a href="#/" className="rail-logo" aria-label="Miki — your grove">
         <LogoMark size={30} />
       </a>
       <div className="rail-group">
         <a href="#/" className={cx("rail-item", (!first || first === "p") && "is-active")} aria-current={!first ? "page" : undefined}>
-          <IconGrid size={19} aria-hidden />
-          <span>Studio</span>
+          <IconGrove size={19} aria-hidden />
+          <span>Grove</span>
         </a>
-        <a href="#/inbox" className={cx("rail-item", first === "inbox" && "is-active")} aria-current={first === "inbox" ? "page" : undefined}>
+        <a href="#/seeds" className={cx("rail-item", isSeeds && "is-active")} aria-current={isSeeds ? "page" : undefined}>
           <span className="rail-icon-wrap">
-            <IconInbox size={19} aria-hidden />
-            {count > 0 && <span className="rail-dot" aria-label={`${count} unsorted`} />}
+            <IconSprout size={19} aria-hidden />
+            {count > 0 && <span className="rail-dot" aria-label={`${count} seeds waiting`} />}
           </span>
-          <span>Unsorted</span>
+          <span>Seeds</span>
         </a>
         <button type="button" className="rail-item" onClick={() => ui.set({ palette: true })} title="Search (⌘K)">
           <IconSearch size={19} aria-hidden />
@@ -52,13 +53,13 @@ export function Rail() {
         </button>
       </div>
       <div className="rail-group rail-capture">
-        <button type="button" className="rail-capture-btn" onClick={() => openCapture({ tab: "write", projectId })} title="Capture a thought (C)">
+        <button type="button" className="rail-capture-btn" onClick={() => openCapture({ tab: "write", projectId })} title="Plant a thought (C)">
           <IconPen size={18} aria-hidden />
-          <span className="sr-only">Capture a thought</span>
+          <span className="sr-only">Plant a thought</span>
         </button>
-        <button type="button" className="rail-capture-btn is-voice" onClick={() => openCapture({ tab: "speak", projectId })} title="Record a voice note (R)">
+        <button type="button" className="rail-capture-btn is-voice" onClick={() => openCapture({ tab: "speak", projectId })} title="Speak a thought (R)">
           <IconMic size={18} aria-hidden />
-          <span className="sr-only">Record a voice note</span>
+          <span className="sr-only">Speak a thought</span>
         </button>
       </div>
       <div className="rail-spacer" />
@@ -74,25 +75,26 @@ export function MobileNav() {
   const route = useRoute();
   const count = useInboxCount();
   const first = route.segments[0];
+  const isSeeds = first === "seeds" || first === "inbox";
   const projectId = currentProjectId(route.path);
   return (
     <nav className="mobile-nav" aria-label="Main">
       <a href={href("/")} className={cx("mobile-nav-item", (!first || first === "p") && "is-active")}>
-        <IconGrid size={20} aria-hidden />
-        <span>Studio</span>
+        <IconGrove size={20} aria-hidden />
+        <span>Grove</span>
       </a>
-      <a href="#/inbox" className={cx("mobile-nav-item", first === "inbox" && "is-active")}>
+      <a href="#/seeds" className={cx("mobile-nav-item", isSeeds && "is-active")}>
         <span className="rail-icon-wrap">
-          <IconInbox size={20} aria-hidden />
+          <IconSprout size={20} aria-hidden />
           {count > 0 && <span className="rail-dot" />}
         </span>
-        <span>Unsorted</span>
+        <span>Seeds</span>
       </a>
       <div className="mobile-capture">
-        <button type="button" className="mobile-capture-btn" onClick={() => openCapture({ tab: "write", projectId })} aria-label="Capture a thought">
+        <button type="button" className="mobile-capture-btn" onClick={() => openCapture({ tab: "write", projectId })} aria-label="Plant a thought">
           <IconPen size={20} aria-hidden />
         </button>
-        <button type="button" className="mobile-capture-btn is-voice" onClick={() => openCapture({ tab: "speak", projectId })} aria-label="Record a voice note">
+        <button type="button" className="mobile-capture-btn is-voice" onClick={() => openCapture({ tab: "speak", projectId })} aria-label="Speak a thought">
           <IconMic size={20} aria-hidden />
         </button>
       </div>

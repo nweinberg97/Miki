@@ -25,8 +25,8 @@ export function DecisionEditor({ decision, project, links, compact, onDeleted }:
   return (
     <div className={cx("decision", compact && "is-compact", decision.status === "decided" && "is-decided")}>
       <div className="decision-head">
-        <span className="eyebrow">Decision</span>
-        {decision.status === "decided" ? <Badge tone="moss">Decided</Badge> : <Badge tone="warm">Open</Badge>}
+        <span className="eyebrow">A choice</span>
+        {decision.status === "decided" ? <Badge tone="moss">Chosen</Badge> : <Badge tone="warm">Open</Badge>}
       </div>
       <InlineEdit label="The question being decided" className="decision-question" value={decision.question} placeholder="What are you deciding?" multiline onCommit={(question) => void save({ question })} />
 
@@ -104,10 +104,10 @@ export function DecisionEditor({ decision, project, links, compact, onDeleted }:
             icon={IconCircleCheck}
             onClick={() => {
               rationale.flush();
-              void save({ status: "decided" }).then(() => toast(chosen ? `Decided: “${chosen.text || "your choice"}”.` : "Marked as decided."));
+              void save({ status: "decided" }).then(() => toast(chosen ? `Chosen: “${chosen.text || "your choice"}”.` : "Marked as chosen."));
             }}
           >
-            {chosen ? "Settle on this" : "Mark decided"}
+            {chosen ? "Choose this" : "Mark as chosen"}
           </Button>
         ) : (
           <Button size="sm" icon={IconRestore} onClick={() => void save({ status: "open" })}>
@@ -135,7 +135,7 @@ export function DecisionEditor({ decision, project, links, compact, onDeleted }:
             void deleteDecision(decision.id)
               .then((restore) => {
                 onDeleted?.();
-                toastUndo("Decision deleted.", restore);
+                toastUndo("Choice deleted.", restore);
               })
               .catch(toastError)
           }

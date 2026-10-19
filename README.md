@@ -1,6 +1,16 @@
 # Miki
 
-**Find the thread.** Miki is a visual writing studio for people juggling several pieces of writing — essays, memoir, fiction, books, half-formed ideas. Capture rough thoughts by voice or text, spread them out in a bounded idea space, decide what matters (and keep a record of why), give the work a sequence, and draft it in a quiet editor. All on the same underlying material.
+**三木 — three trees. A place for your thoughts to take root.**
+
+*Mi* means three, *ki* means tree. A tree is grounded, it brings life — leaves upon leaves of it — and it still stands, holding all of that at once. Miki is a writing studio built on those three principles. Every project is a tree with three parts:
+
+| | Part | Principle | What you do there |
+| --- | --- | --- | --- |
+| 根 | **Roots** | Intention | Say why the piece exists, who it's for, and its thread (one sentence). Keep the people, places and sources it grows from. |
+| 葉 | **Leaves** | Ideas | Capture freely — typed or spoken. Recordings are transcribed (optionally) and any passage can become a leaf. Leaves you *let fall* are kept, never deleted. |
+| 幹 | **Trunk** | Discernment | Carry the leaves that matter onto the trunk, in order. Weigh choices and keep the reasons. Grow a draft along the trunk and write it in a quiet editor. |
+
+Home is your **grove**: each project drawn as a tree whose shape follows the real state of the work (a seed, rooting, leafing, standing). Thoughts that don't belong anywhere yet wait in **Seeds**.
 
 Miki is **local-first**: your writing lives in your browser's own database on your device. No account, no tracking, nothing uploaded unless you explicitly send a recording to a transcription service.
 
@@ -43,7 +53,7 @@ Requires Node 20+.
 
 **Vercel (recommended):** import the repo. `vercel.json` sets the build command and output directory, and the `api/` folder provides `/api/health` and `/api/transcribe` as serverless functions. To enable transcription, add `TRANSCRIPTION_API_KEY` (or `TRANSCRIPTION_API_BASE`) in the project's environment variables. Note Vercel's ~4.5 MB request limit (≈5–8 minutes of compressed speech).
 
-Each visitor's data stays in their own browser — a hosted Miki is a private studio per device, not a shared workspace.
+Each visitor's data stays in their own browser — a hosted Miki is a private grove per device, not a shared workspace.
 
 ## Testing
 
@@ -69,20 +79,20 @@ If Playwright's browser isn't installed: `npx playwright install chromium`.
 | Exports | Markdown, plain text, standalone HTML, print/PDF, and Word (`docx`, loaded on demand) |
 | Offline | Service worker caches the app shell; your data never touches it |
 | Server (optional) | `server/transcribe.mjs` — a dependency-free relay to any OpenAI-compatible transcription API, shared by `server/server.mjs` and the Vercel functions |
-| Type | Fraunces (display), Literata (prose), Instrument Sans (interface) — self-hosted, SIL OFL |
+| Type | Shippori Mincho (display & prose), Zen Kaku Gothic New (interface) — self-hosted, SIL OFL |
 
 ```
 src/
   data/        types, IndexedDB layer, domain operations (repo.ts), templates, backups, samples
   editor/      ProseMirror schema/setup, Editor component, autosave + recovery, serializers, exporters
   features/
-    studio/    home, new project
-    project/   project shell, modes, Overview, rule-based suggestions
-    capture/   capture dialog, voice recording, transcripts, notes, extraction
-    board/     Idea space (bounded canvas), structure board, outline/list views, card panel
-    write/     documents, editor chrome, material panel, versions, manuscript export
-    discern/   process steps and decisions
-    reference/ characters, places, sources, themes
+    studio/    the grove (home), planting a new tree
+    project/   project shell; Roots, Trunk; "Miki asks" (rule-based questions)
+    capture/   Leaves and Seeds: plant dialog, voice recording, transcripts, leaves, extraction
+    board/     the trunk's shape (ordered parts), outline/list view, piece panel
+    write/     drafts, editor chrome, trunk-beside-the-draft panel, versions, manuscript export
+    discern/   choices (options, the choice, the reason)
+    reference/ what a piece grows from: people, places, sources, themes
     search/    ⌘K palette
     settings/  storage, backups, transcription, appearance, diagnostics
   transcription/  MediaRecorder hook, transcription adapters
@@ -92,9 +102,10 @@ tests/         unit (node:test) and end-to-end (Playwright)
 
 ### The ideas behind the structure
 
-- **One workspace, several ways of looking.** Overview · Capture · Explore · Arrange · Write · Discern · Reference are views over the same records. A card keeps its identity whether it's on the idea space, in the outline, linked to a decision, or the source of a draft.
-- **Bounded, not infinite.** The idea space is a sheet that grows with your material but can't be panned into the void. Clusters (*Collecting · Promising · Set aside*) make discernment physical; "Set aside" is deliberately not "delete". Fit-to-content (`F`) and focus-on-selection keep everything findable.
-- **The thread.** Every project has one sentence at its centre — what it's really about. Set it directly, from a promising idea, or from a decision.
+- **Three parts, one material.** Roots · Leaves · Trunk are views over the same records. A leaf keeps its identity when it's carried onto the trunk (the trunk piece links back to it), added to a draft, or connected to a choice.
+- **Discernment, not deletion.** Letting a leaf fall sets it aside under *Fallen*; it's still searchable and can be picked back up. Taking a piece off the trunk leaves the leaf it came from untouched.
+- **Miki asks, one thing at a time.** Each part shows at most one question, from simple rules about your material ("What is this piece for?", "There's a shape here — ready to grow a draft?"). Nothing is generated; every question can be dismissed.
+- **The thread.** Every project has one sentence at its centre — what it's really about. Set it in the roots or on the trunk, or make a choice the thread.
 - **Decisions are objects.** The question, the options, the choice, the reason, the trade-offs, and what it unlocks — linked to the cards and notes it affects.
 - **Provenance.** Material pulled from a transcript keeps a link to the exact passage (and timestamp when the engine provides one). Transcripts keep the verbatim original alongside your working copy.
 
@@ -121,16 +132,15 @@ If none is configured, the recording is kept and the UI says so — no placehold
 
 ## Implemented
 
-- Studio: projects (create from 6 templates, rename, archive, delete, back up), continue-where-you-left-off, Unsorted inbox, clearly labelled sample projects
-- Global capture (`C` / `R`): text or voice, to any project or Unsorted; move later
-- Voice: permission handling, level meter, pause/resume, discard with confirmation, review before saving, download audio
-- Transcripts: verbatim original + editable working copy, select a passage → note / key idea / idea card / outline item / append to draft (quote or text) / copy / play from timestamp; "pull out fragments" (deterministic split, user picks); derived items link back
-- Idea space: pan, zoom, fit, drag, multi-select (shift-click, shift-drag), keyboard nudge/delete/open, clusters (create, rename, move, resize, collapse), typed cards, connections (supports / contradicts / depends / leads), find & filter, persistent viewport
-- Structure: ordered sections and cards, drag between columns, Alt+arrow keyboard reordering, outline view, "Draft from structure", scene → its own draft (linked both ways), referenced characters shown on cards
-- Editor: headings, bold/italic, lists, quotes, links, dividers, undo/redo, Markdown shortcuts and paste, smart quotes, selection toolbar, word count and reading time, focus mode, project material side panel, versions, exports (MD, TXT, HTML, print/PDF, DOCX), manuscript export of chosen drafts
-- Discern: processes from templates or blank, editable/reorderable/skippable steps, guiding questions, context panels that surface existing material, decisions with options/rationale/trade-offs/next, "make this the thread", save your own process templates
-- References: characters, places, research, sources, themes, arguments, questions — editable fields, notes, links to scenes and material
-- Rule-based suggestions on Overview (dismissible), ⌘K search across everything, keyboard shortcuts (`?`), light/dark/system theme, writing size and line length, responsive layouts for phones, reduced-motion support, installable PWA with offline app shell
+- Grove: projects drawn as trees that grow with the work, "what's taking root today?" planting, pick up where you left off, Seeds sidebar with "Plant in…", resting (archived) trees, clearly labelled sample projects, the three-trees story for first visits
+- New tree: 6 kinds (essay, memoir, story, book, exploration, blank), starting with *why*
+- Roots: purpose, audience, thread, other notes (autosaved); people, places, sources, themes, arguments — editable fields, notes, connections
+- Leaves: quick add, plant from anywhere (`C` / `R`), Growing / Voice / Fallen, kinds (leaf, fragment, idea, question, quote), carry onto a trunk part, add to a draft (quote or text), let fall / pick back up, move between projects or back to Seeds; "on the trunk" markers
+- Voice: permission handling, level meter, pause/resume, discard with confirmation, review before saving, download audio; transcripts keep the verbatim original plus an editable working copy; select a passage → leaf / trunk / draft / copy / play from timestamp; "find the leaves" (deterministic split, you choose); everything links back to its passage
+- Trunk: the thread; ordered parts and pieces, drag between parts, Alt+arrow keyboard reordering, outline view, "Grow a draft" along the trunk, a piece → its own draft (linked both ways); choices with options, the choice, the reason, trade-offs and next step, "make this the thread"
+- Editor: headings, bold/italic, lists, quotes, links, dividers, undo/redo, Markdown shortcuts and paste, smart quotes, selection toolbar, word count and reading time, focus mode, trunk & leaves beside the draft, versions, exports (MD, TXT, HTML, print/PDF, DOCX), manuscript export of chosen drafts
+- ⌘K search across everything, keyboard shortcuts (`?`, `1`/`2`/`3` for the parts), light/dark/system theme, writing size and line length, responsive layouts for phones, reduced-motion support, installable PWA with offline app shell
+- Older data: loose cards from the earlier "idea space" become leaves automatically (once), keeping their text, sources and connections
 
 ## Not implemented (and why)
 
@@ -142,9 +152,9 @@ If none is configured, the recording is kept and the UI says so — no placehold
 
 ## Most valuable next steps
 
-1. **Optional sync** (e.g. CRDT-backed, end-to-end encrypted) so the same studio follows you across devices.
+1. **Optional sync** (e.g. CRDT-backed, end-to-end encrypted) so the same grove follows you across devices.
 2. **On-device transcription** (Whisper in a Web Worker with WebGPU) for private, free speech-to-text.
 3. **Opt-in AI, in context:** summarise a transcript, compare outlines, find contradictions — always as suggestions beside the writer's words.
 4. **Comments and suggested edits** on drafts, building toward shared projects.
-5. **Richer structure views:** timeline for fiction, argument map for nonfiction.
+5. **Richer trunk views:** timeline for fiction, argument map for nonfiction.
 6. **Publishing hand-offs** (Substack-ready HTML, EPUB).

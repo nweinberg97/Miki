@@ -611,3 +611,12 @@
     padding: 18px 16px 40px;
   }
 }
+
+.note-fallen-line {
+  margin: 4px 0 0;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--warm-soft);
+  color: var(--warm-ink);
+  font-size: var(--text-sm);
+}

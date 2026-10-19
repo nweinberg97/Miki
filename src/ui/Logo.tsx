@@ -1,21 +1,27 @@
+import { GLYPH_KI, GLYPH_SAN } from "./logoGlyphs";
+
 /**
- * The Miki mark: a page-like frame left open at one corner, with a single point of focus.
- * It reads as "looking closely" — the aperture where the essential idea comes into view.
+ * The Miki mark: 三木, "three trees", set vertically like a seal.
+ * Drawn from real glyph outlines so it renders identically everywhere.
  */
 export function LogoMark({ size = 28, className }: { size?: number; className?: string }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 64 64" aria-hidden>
-      <path d="M38 13H21a8 8 0 0 0-8 8v22a8 8 0 0 0 8 8h22a8 8 0 0 0 8-8V26" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-      <circle cx="43.5" cy="20.5" r="5" fill="var(--moss)" />
+    <svg className={className} width={size * 0.5} height={size} viewBox="0 0 500 1000" aria-hidden fill="currentColor">
+      <path transform="translate(0 0) scale(0.5)" d={GLYPH_SAN} />
+      <path transform="translate(0 500) scale(0.5)" d={GLYPH_KI} />
     </svg>
   );
 }
 
-export function Wordmark({ size = 22 }: { size?: number }) {
+/** 三木 with MIKI spaced beneath it — the brand lockup. */
+export function Wordmark({ size = 22, stacked = false }: { size?: number; stacked?: boolean }) {
   return (
-    <span className="wordmark" style={{ fontSize: size }}>
-      <LogoMark size={size * 1.1} />
-      <span className="wordmark-text">miki</span>
+    <span className={stacked ? "wordmark is-stacked" : "wordmark"} style={{ fontSize: size }}>
+      <svg width={size * 2} height={size} viewBox="0 0 2000 1000" aria-hidden fill="currentColor">
+        <path transform="translate(0 20) scale(0.96)" d={GLYPH_SAN} />
+        <path transform="translate(1000 20) scale(0.96)" d={GLYPH_KI} />
+      </svg>
+      <span className="wordmark-text">MIKI</span>
     </span>
   );
 }

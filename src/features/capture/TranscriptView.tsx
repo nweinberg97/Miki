@@ -3,15 +3,16 @@ import { db } from "../../data/db";
 import { useLive } from "../../data/hooks";
 import { deleteTranscript, getAudio, updateTranscript } from "../../data/repo";
 import { INBOX, type Project, type SourceRef, type Transcript } from "../../data/types";
-import { href, projectPath } from "../../lib/router";
+import { href } from "../../lib/router";
+import { partPath } from "../project/modes";
 import { byOrder, copyText, cx, plural, truncate, wordCount, formatDuration } from "../../lib/util";
 import { timeForExcerpt } from "../../transcription/engines";
 import { Dialog } from "../../ui/Dialog";
-import { IconCopy, IconDoc, IconIdea, IconNote, IconOutline, IconPlay, IconQuestion, IconScissors, IconTrash, IconCheck } from "../../ui/icons";
+import { IconCopy, IconDoc, IconLeaf, IconOutline, IconPlay, IconQuestion, IconScissors, IconTrash, IconCheck } from "../../ui/icons";
 import { Menu } from "../../ui/Menu";
 import { toast, toastError, toastUndo } from "../../ui/toast";
 import { Badge, Button, InlineEdit, Segmented } from "../../ui/ui";
-import { appendToDocument, excerptToIdeaCard, excerptToNote, excerptToStructureCard, splitFragments } from "./derive";
+import { appendToDocument, excerptToNote, excerptToStructureCard, splitFragments } from "./derive";
 import { orderStructure } from "../board/structureDoc";
 
 export function TranscriptView({ transcript, project, highlight }: { transcript: Transcript; project: Project | null; highlight?: string | null }) {
@@ -52,10 +53,11 @@ export function TranscriptView({ transcript, project, highlight }: { transcript:
       ]);
       const structure = boards.find((b) => b.kind === "structure");
       const derived = [
-        ...notes.filter((n) => n.source?.id === transcript.id).map((n) => ({ id: n.id, title: n.title || truncate(n.body, 50), kind: "note" as const, to: href(projectPath(projectId, "capture"), { note: n.id }) })),
+        ...notes.filter((n) => n.source?.id === transcript.id).map((n) => ({ id: n.id, title: n.title || truncate(n.body, 50), kind: "note" as const, to: href(partPath(projectId, "leaves"), { note: n.id }) })),
         ...cards
           .filter((c) => c.source?.id === transcript.id)
-          .map((c) => ({ id: c.id, title: c.title || truncate(c.body, 50), kind: "card" as const, to: href(projectPath(projectId, c.boardId === structure?.id ? "arrange" : "explore"), { card: c.id }) })),
+          .filter((c) => c.boardId === structure?.id)
+          .map((c) => ({ id: c.id, title: c.title || truncate(c.body, 50), kind: "card" as const, to: href(partPath(projectId, "trunk"), { card: c.id }) })),
       ];
       return { docs: [...docs].sort(byOrder), sections: orderStructure(sections.filter((s) => s.boardId === structure?.id), []).filter((c) => c.section).map((c) => c.section!), derived };
     },
@@ -161,7 +163,7 @@ export function TranscriptView({ transcript, project, highlight }: { transcript:
         />
         <span className="grow" />
         <Button size="sm" variant="ghost" icon={IconScissors} onClick={() => setFragmentsOpen(true)}>
-          Pull out fragments
+          Find the leaves
         </Button>
         <Menu
           label="Transcript actions"
@@ -180,33 +182,27 @@ export function TranscriptView({ transcript, project, highlight }: { transcript:
       {sel && excerpt && view === "working" && (
         <div className="extract-bar" role="toolbar" aria-label="Use the selected passage" onMouseDown={(e) => e.preventDefault()}>
           <span className="extract-count">{plural(wordCount(excerpt), "word")}</span>
-          <Button size="sm" variant="ghost" icon={IconNote} onClick={() => void run("Saved as a note, linked to this passage.", () => excerptToNote(projectId, excerpt, source(), "fragment"))}>
-            Note
-          </Button>
-          <Button size="sm" variant="ghost" icon={IconIdea} onClick={() => void run("Kept as a key idea.", () => excerptToNote(projectId, excerpt, source(), "idea"))}>
-            Key idea
+          <Button size="sm" variant="ghost" icon={IconLeaf} onClick={() => void run(inInbox ? "Kept as a seed, linked to this passage." : "Kept as a leaf, linked to this passage.", () => excerptToNote(projectId, excerpt, source(), "fragment"))}>
+            {inInbox ? "Keep" : "Leaf"}
           </Button>
           {!inInbox && (
             <>
-              <Button size="sm" variant="ghost" icon={IconIdea} onClick={() => void run("Added to the idea space.", () => excerptToIdeaCard(projectId, excerpt, source()))}>
-                Card
-              </Button>
               <Menu
-                label="Add as outline item"
+                label="Carry onto the trunk"
                 align="start"
                 trigger={(t) => (
                   <Button {...t} size="sm" variant="ghost" icon={IconOutline}>
-                    Outline
+                    Trunk
                   </Button>
                 )}
                 items={[
-                  { heading: "Add to section" },
-                  ...(ctx?.sections ?? []).map((s) => ({ label: s.title, onSelect: () => void run(`Added to “${s.title}”.`, () => excerptToStructureCard(projectId, s.id, excerpt, source())) })),
-                  { label: "Unplaced", onSelect: () => void run("Added to the structure.", () => excerptToStructureCard(projectId, null, excerpt, source())) },
+                  { heading: "Carry onto the trunk, in" },
+                  ...(ctx?.sections ?? []).map((s) => ({ label: s.title, onSelect: () => void run(`Carried onto the trunk, in “${s.title}”.`, () => excerptToStructureCard(projectId, s.id, excerpt, source())) })),
+                  { label: "Not placed yet", onSelect: () => void run("Carried onto the trunk.", () => excerptToStructureCard(projectId, null, excerpt, source())) },
                 ]}
               />
               <Menu
-                label="Append to a draft"
+                label="Add to a draft"
                 align="start"
                 trigger={(t) => (
                   <Button {...t} size="sm" variant="ghost" icon={IconDoc}>
@@ -217,10 +213,10 @@ export function TranscriptView({ transcript, project, highlight }: { transcript:
                   ctx?.docs.length
                     ? ctx.docs.flatMap((d) => [
                         { heading: d.title },
-                        { label: "Append as a quote", onSelect: () => void run(`Appended to “${d.title}”.`, () => appendToDocument(d.id, excerpt, true)) },
-                        { label: "Append as text", onSelect: () => void run(`Appended to “${d.title}”.`, () => appendToDocument(d.id, excerpt, false)) },
+                        { label: "Add as a quote", onSelect: () => void run(`Added to “${d.title}”.`, () => appendToDocument(d.id, excerpt, true)) },
+                        { label: "Add as text", onSelect: () => void run(`Added to “${d.title}”.`, () => appendToDocument(d.id, excerpt, false)) },
                       ])
-                    : [{ label: "No drafts yet — create one in Write", disabled: true, onSelect: () => undefined }]
+                    : [{ label: "No drafts yet — grow one on the trunk", disabled: true, onSelect: () => undefined }]
                 }
               />
             </>
@@ -245,8 +241,8 @@ export function TranscriptView({ transcript, project, highlight }: { transcript:
           )}
         </div>
       )}
-      {!sel && view === "working" && <p className="extract-hint muted small">Select any passage to keep it as a note, a card, an outline item, or part of a draft. The transcript itself stays as it is.</p>}
-      {inInbox && sel && <p className="muted small">Move this recording to a project to turn passages into cards or drafts.</p>}
+      {!sel && view === "working" && <p className="extract-hint muted small">Select any passage worth keeping: make it a leaf, carry it onto the trunk, or add it to the draft. The transcript itself stays as it is.</p>}
+      {inInbox && sel && <p className="muted small">Plant this recording in a project to carry passages onto its trunk or into a draft.</p>}
 
       {view === "working" ? (
         <textarea
@@ -283,11 +279,11 @@ export function TranscriptView({ transcript, project, highlight }: { transcript:
 
       {ctx && ctx.derived.length > 0 && (
         <section className="derived">
-          <h3 className="eyebrow">Pulled from this transcript</h3>
+          <h3 className="eyebrow">Kept from this recording</h3>
           <div className="chip-row">
             {ctx.derived.map((d) => (
               <a key={d.id} className="chip" href={d.to}>
-                {d.kind === "note" ? <IconNote size={13} aria-hidden /> : <IconIdea size={13} aria-hidden />}
+                {d.kind === "note" ? <IconLeaf size={13} aria-hidden /> : <IconOutline size={13} aria-hidden />}
                 <span>{d.title || "Untitled"}</span>
               </a>
             ))}
@@ -302,7 +298,7 @@ export function TranscriptView({ transcript, project, highlight }: { transcript:
 function FragmentsDialog({ open, onClose, transcript, projectId }: { open: boolean; onClose: () => void; transcript: Transcript; projectId: string }) {
   const fragments = useMemo(() => (open ? splitFragments(transcript.text) : []), [open, transcript.text]);
   const [picked, setPicked] = useState<Set<number>>(new Set());
-  const [as, setAs] = useState<"notes" | "cards">("notes");
+  
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (open) setPicked(new Set());
@@ -314,10 +310,9 @@ function FragmentsDialog({ open, onClose, transcript, projectId }: { open: boole
         const f = fragments[i];
         const start = transcript.text.indexOf(f);
         const src: SourceRef = { type: "transcript", id: transcript.id, excerpt: truncate(f, 280), start, end: start + f.length, time: timeForExcerpt(transcript.original, transcript.segments, f) };
-        if (as === "cards" && projectId !== INBOX) await excerptToIdeaCard(projectId, f, src);
-        else await excerptToNote(projectId, f, src, "fragment");
+        await excerptToNote(projectId, f, src, "fragment");
       }
-      toast(`${plural(picked.size, as === "cards" ? "card" : "note")} created, each linked to its passage.`);
+      toast(`${plural(picked.size, projectId === INBOX ? "seed" : "leaf", projectId === INBOX ? "seeds" : "leaves")} kept, each linked to its passage.`);
       onClose();
     } catch (e) {
       toastError(e);
@@ -330,22 +325,10 @@ function FragmentsDialog({ open, onClose, transcript, projectId }: { open: boole
       open={open}
       onClose={onClose}
       size="lg"
-      title="Pull out fragments"
-      description="Miki split the transcript at paragraph and sentence breaks — nothing is rewritten or summarised. Keep the ones that matter."
+      title="Find the leaves"
+      description="Miki split the transcript at paragraph and sentence breaks — nothing is rewritten or summarised. Keep the ones that matter; the rest stay in the transcript."
       footer={
         <>
-          {projectId !== INBOX && (
-            <Segmented
-              size="sm"
-              label="Save as"
-              value={as}
-              onChange={setAs}
-              options={[
-                { value: "notes", label: "Notes" },
-                { value: "cards", label: "Idea cards" },
-              ]}
-            />
-          )}
           <span className="grow" />
           <Button variant="ghost" onClick={onClose}>
             Cancel

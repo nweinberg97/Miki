@@ -1,15 +1,16 @@
+import { partPath } from "../project/modes";
 import { useMemo, useState } from "react";
 import { db } from "../../data/db";
 import { useLive } from "../../data/hooks";
 import type { DocContent, Project } from "../../data/types";
 import { buildDoc } from "../../editor/serialize";
-import { href, projectPath } from "../../lib/router";
+import { href } from "../../lib/router";
 import { truncate } from "../../lib/util";
 import { IconPlus, IconQuote, IconX } from "../../ui/icons";
 import { IconButton, Segmented, TextInput } from "../../ui/ui";
 import { orderStructure } from "../board/structureDoc";
 
-type Tab = "structure" | "ideas" | "notes" | "refs";
+type Tab = "structure" | "notes" | "refs";
 
 interface Item {
   id: string;
@@ -41,40 +42,31 @@ export function MaterialPanel({ project, onInsert, onClose }: { project: Project
 
   const groups = useMemo((): { label: string; items: Item[] }[] => {
     if (!data) return [];
-    const ideas = data.boards.find((b) => b.kind === "ideas");
     const structure = data.boards.find((b) => b.kind === "structure");
     if (tab === "structure") {
       return orderStructure(
         data.sections.filter((s) => s.boardId === structure?.id),
         data.cards.filter((c) => c.boardId === structure?.id),
       ).map((col) => ({
-        label: col.section?.title ?? "Unplaced",
-        items: col.cards.map((c) => ({ id: c.id, title: c.title, body: c.body, to: projectPath(project.id, "arrange") + `?card=${c.id}` })),
+        label: col.section?.title ?? "Not placed yet",
+        items: col.cards.map((c) => ({ id: c.id, title: c.title, body: c.body, to: partPath(project.id, "trunk") + `?view=shape&card=${c.id}` })),
       }));
-    }
-    if (tab === "ideas") {
-      const secs = data.sections.filter((s) => s.boardId === ideas?.id).sort((a, b) => a.order - b.order);
-      const cards = data.cards.filter((c) => c.boardId === ideas?.id);
-      return [
-        ...secs.map((s) => ({ label: s.title, items: cards.filter((c) => c.sectionId === s.id) })),
-        { label: "Loose", items: cards.filter((c) => !c.sectionId || !secs.some((s) => s.id === c.sectionId)) },
-      ].map((g) => ({ label: g.label, items: g.items.map((c) => ({ id: c.id, title: c.title, body: c.body, to: projectPath(project.id, "explore") + `?card=${c.id}` })) }));
     }
     if (tab === "notes") {
       return [
-        { label: "Notes", items: [...data.notes].sort((a, b) => b.updatedAt - a.updatedAt).map((n) => ({ id: n.id, title: n.title, body: n.body, meta: n.kind, to: projectPath(project.id, "capture") + `?note=${n.id}` })) },
-        { label: "Transcripts", items: data.transcripts.map((t) => ({ id: t.id, title: t.title, body: t.text, meta: "transcript", to: projectPath(project.id, "capture") + `?tr=${t.id}` })) },
+        { label: "Leaves", items: data.notes.filter((n) => !n.fallen).sort((a, b) => b.updatedAt - a.updatedAt).map((n) => ({ id: n.id, title: n.title, body: n.body, meta: n.kind === "note" ? "leaf" : n.kind, to: partPath(project.id, "leaves") + `?note=${n.id}` })) },
+        { label: "Spoken", items: data.transcripts.map((t) => ({ id: t.id, title: t.title, body: t.text, meta: "transcript", to: partPath(project.id, "leaves") + `?tr=${t.id}` })) },
       ];
     }
     return [
       {
-        label: "References",
+        label: "Roots",
         items: data.refs.map((r) => ({
           id: r.id,
           title: r.title,
           body: [r.summary, ...r.fields.filter((f) => f.value).map((f) => `${f.label}: ${f.value}`)].filter(Boolean).join("\n"),
           meta: r.kind,
-          to: projectPath(project.id, "reference") + `?ref=${r.id}`,
+          to: partPath(project.id, "roots") + `?view=sources&ref=${r.id}`,
         })),
       },
     ];
@@ -88,20 +80,19 @@ export function MaterialPanel({ project, onInsert, onClose }: { project: Project
   return (
     <aside className="material" aria-label="Project material">
       <div className="material-head">
-        <h2 className="eyebrow">Material</h2>
+        <h2 className="eyebrow">Beside the draft</h2>
         <IconButton icon={IconX} label="Close material panel" size="sm" onClick={onClose} />
       </div>
       {project.thread && <p className="material-thread">“{project.thread}”</p>}
       <Segmented
         size="sm"
-        label="Material type"
+        label="Show"
         value={tab}
         onChange={setTab}
         options={[
-          { value: "structure", label: "Structure" },
-          { value: "ideas", label: "Ideas" },
-          { value: "notes", label: "Notes" },
-          { value: "refs", label: "Refs" },
+          { value: "structure", label: "Trunk" },
+          { value: "notes", label: "Leaves" },
+          { value: "refs", label: "Roots" },
         ]}
       />
       <TextInput className="material-search" placeholder="Filter…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter material" />

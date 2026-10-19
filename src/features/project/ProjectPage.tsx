@@ -1,44 +1,37 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRecord } from "../../data/hooks";
 import { touchProject, updateProject } from "../../data/repo";
 import { projectTemplate } from "../../data/templates";
-import type { Mode, Project } from "../../data/types";
-import { href, navigate, projectPath } from "../../lib/router";
+import type { Part, Project } from "../../data/types";
+import { href, navigate } from "../../lib/router";
 import { ui } from "../../lib/store";
 import { cx, isTypingTarget } from "../../lib/util";
 import { IconArchive, IconChevronLeft, IconDevice, IconDownload, IconMore, IconPencil, IconTrash, IconUnarchive, IconFileDown } from "../../ui/icons";
 import { Menu } from "../../ui/Menu";
+import { PartGlyph } from "../../ui/PartGlyph";
 import { toastError } from "../../ui/toast";
 import { Badge, Button, EmptyState, IconButton, InlineEdit, Spinner } from "../../ui/ui";
-import { MODES, isMode } from "./modes";
+import { PARTS, partPath, toPart } from "./modes";
 import { exportBackup, removeProject, renameProject, toggleArchive } from "./projectActions";
-import { OverviewMode } from "./OverviewMode";
-import { CaptureMode } from "../capture/CaptureMode";
-import { BoardMode } from "../board/BoardMode";
-import { WriteMode } from "../write/WriteMode";
-import { DiscernMode } from "../discern/DiscernMode";
-import { ReferenceMode } from "../reference/ReferenceMode";
+import { RootsMode } from "./RootsMode";
+import { TrunkMode } from "./TrunkMode";
+import { MikiAsks } from "./MikiAsks";
+import { CaptureWorkspace } from "../capture/CaptureWorkspace";
 import { ManuscriptExportDialog } from "../write/ManuscriptExportDialog";
-import { useState } from "react";
 import "./project.css";
 
 export function ProjectPage({ projectId, mode: rawMode, query }: { projectId: string; mode?: string; query: URLSearchParams }) {
   const { data: project, loading } = useRecord("projects", projectId);
-  const mode: Mode = isMode(rawMode) ? rawMode : "overview";
+  const part: Part = toPart(rawMode, project ?? undefined);
   const focusMode = ui.use((s) => s.focusMode);
   const [manuscriptOpen, setManuscriptOpen] = useState(false);
 
-  // Remember where the writer was, so the studio can offer to resume.
+  // Remember where the writer was, so the grove can offer to resume.
   const entityId = query.get("doc") ?? undefined;
   useEffect(() => {
-    if (project) void touchProject(project.id, { mode, entityId: mode === "write" ? entityId : undefined }).catch(() => undefined);
+    if (project) void touchProject(project.id, { mode: part, entityId: part === "trunk" ? entityId : undefined }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id, mode, entityId]);
-
-  // Keep the active mode tab visible when the tab strip scrolls (small screens).
-  useEffect(() => {
-    document.querySelector(".mode-tab.is-active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [mode, project?.id]);
+  }, [project?.id, part, entityId]);
 
   useEffect(() => {
     if (project) document.title = `${project.title} · Miki`;
@@ -50,10 +43,10 @@ export function ProjectPage({ projectId, mode: rawMode, query }: { projectId: st
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target) || document.querySelector("dialog[open]")) return;
-      const m = MODES.find((x) => x.key === e.key);
-      if (m) {
+      const p = PARTS.find((x) => x.key === e.key);
+      if (p) {
         e.preventDefault();
-        navigate(projectPath(projectId, m.mode));
+        navigate(partPath(projectId, p.part));
       }
     };
     window.addEventListener("keydown", onKey);
@@ -71,10 +64,10 @@ export function ProjectPage({ projectId, mode: rawMode, query }: { projectId: st
     return (
       <div className="page">
         <EmptyState
-          title="This project isn't here"
+          title="This tree isn't here"
           actions={
             <Button variant="primary" onClick={() => navigate("/")}>
-              Back to the studio
+              Back to the grove
             </Button>
           }
         >
@@ -85,27 +78,22 @@ export function ProjectPage({ projectId, mode: rawMode, query }: { projectId: st
   }
 
   return (
-    <div className={cx("project", `project-mode-${mode}`, focusMode && "is-focus")}>
+    <div className={cx("project", `project-part-${part}`, focusMode && "is-focus")}>
       {!focusMode && (
         <header className="project-header">
           <div className="project-header-row">
-            <a href="#/" className="project-back" aria-label="Back to the studio">
+            <a href="#/" className="project-back" aria-label="Back to the grove">
               <IconChevronLeft size={16} aria-hidden />
-              <span>Studio</span>
+              <span>Grove</span>
             </a>
             <div className="project-title-wrap">
-              <InlineEdit
-                label="Project title"
-                className="project-title"
-                value={project.title}
-                onCommit={(title) => void updateProject(project.id, { title }).catch(toastError)}
-              />
+              <InlineEdit label="Project title" className="project-title" value={project.title} onCommit={(title) => void updateProject(project.id, { title }).catch(toastError)} />
               {project.isSample && (
                 <Badge tone="warm" className="project-sample-badge">
                   Sample
                 </Badge>
               )}
-              {project.archived && <Badge>Archived</Badge>}
+              {project.archived && <Badge>Resting</Badge>}
             </div>
             <div className="project-header-actions">
               <a className="storage-pill" href="#/settings" title="Your work is saved in this browser. Nothing is uploaded. Click for storage and backups.">
@@ -115,46 +103,48 @@ export function ProjectPage({ projectId, mode: rawMode, query }: { projectId: st
               <ProjectMenu project={project} onManuscript={() => setManuscriptOpen(true)} />
             </div>
           </div>
-          <nav className="mode-tabs" aria-label="Project modes">
-            {MODES.map((m) => (
+          <nav className="part-tabs" aria-label="The three parts of this project">
+            {PARTS.map((p) => (
               <a
-                key={m.mode}
-                href={href(projectPath(project.id, m.mode))}
-                className={cx("mode-tab", mode === m.mode && "is-active")}
-                aria-current={mode === m.mode ? "page" : undefined}
-                title={`${m.hint} (${m.key})`}
+                key={p.part}
+                href={href(partPath(project.id, p.part))}
+                className={cx("part-tab", `part-tab-${p.part}`, part === p.part && "is-active")}
+                aria-current={part === p.part ? "page" : undefined}
+                title={`${p.line} (${p.key})`}
               >
-                <m.icon size={15} aria-hidden />
-                <span>{m.label}</span>
+                <PartGlyph part={p.part} size={30} className="part-tab-glyph" />
+                <span className="part-tab-kanji" aria-hidden>
+                  {p.kanji}
+                </span>
+                <span className="part-tab-text">
+                  <span className="part-tab-label">{p.label}</span>
+                  <span className="part-tab-principle">{p.principle}</span>
+                </span>
               </a>
             ))}
           </nav>
         </header>
       )}
       <div className="project-body">
-        <ModeView project={project} mode={mode} query={query} />
+        <PartView project={project} part={part} query={query} />
       </div>
       <ManuscriptExportDialog open={manuscriptOpen} onClose={() => setManuscriptOpen(false)} project={project} />
     </div>
   );
 }
 
-function ModeView({ project, mode, query }: { project: Project; mode: Mode; query: URLSearchParams }) {
-  switch (mode) {
-    case "capture":
-      return <CaptureMode project={project} query={query} />;
-    case "explore":
-      return <BoardMode project={project} kind="ideas" query={query} />;
-    case "arrange":
-      return <BoardMode project={project} kind="structure" query={query} />;
-    case "write":
-      return <WriteMode project={project} query={query} />;
-    case "discern":
-      return <DiscernMode project={project} query={query} />;
-    case "reference":
-      return <ReferenceMode project={project} query={query} />;
+function PartView({ project, part, query }: { project: Project; part: Part; query: URLSearchParams }) {
+  switch (part) {
+    case "roots":
+      return <RootsMode project={project} query={query} />;
+    case "trunk":
+      return <TrunkMode project={project} query={query} />;
     default:
-      return <OverviewMode project={project} />;
+      return (
+        <div className="part-body leaves">
+          <CaptureWorkspace projectId={project.id} project={project} query={query} basePath={partPath(project.id, "leaves")} intro={<MikiAsks project={project} part="leaves" />} />
+        </div>
+      );
   }
 }
 
@@ -169,7 +159,7 @@ function ProjectMenu({ project, onManuscript }: { project: Project; onManuscript
         { label: "Rename", icon: IconPencil, onSelect: () => void renameProject(project) },
         { label: "Export writing…", icon: IconFileDown, onSelect: onManuscript },
         { label: "Download backup", icon: IconDownload, onSelect: () => void exportBackup(project) },
-        { label: project.archived ? "Unarchive" : "Archive", icon: project.archived ? IconUnarchive : IconArchive, onSelect: () => void toggleArchive(project) },
+        { label: project.archived ? "Wake it up" : "Let it rest (archive)", icon: project.archived ? IconUnarchive : IconArchive, onSelect: () => void toggleArchive(project) },
         { separator: true },
         { label: "Delete project…", icon: IconTrash, danger: true, onSelect: () => void removeProject(project) },
       ]}

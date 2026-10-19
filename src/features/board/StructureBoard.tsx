@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { arrangeStructure, createCard, createSection, deleteCards, deleteSection, reorderSections, updateSection } from "../../data/repo";
 import type { Card, CardType, Project } from "../../data/types";
-import { navigate, projectPath } from "../../lib/router";
+import { navigate } from "../../lib/router";
+import { partPath } from "../project/modes";
 import { cx, plural } from "../../lib/util";
 import { promptDialog } from "../../ui/Dialog";
-import { IconArrowLeft, IconArrowRight, IconDocPlus, IconMore, IconOutline, IconPlus, IconTrash } from "../../ui/icons";
+import { IconArrowLeft, IconArrowRight, IconDocPlus, IconLeaf, IconMore, IconOutline, IconPlus, IconTrash } from "../../ui/icons";
 import { Menu } from "../../ui/Menu";
 import { toast, toastError, toastUndo } from "../../ui/toast";
 import { Button, EmptyState, IconButton, InlineEdit } from "../../ui/ui";
@@ -55,7 +56,7 @@ export function StructureBoard({
     }
   };
   const addSection = async () => {
-    const title = await promptDialog({ title: "New section", label: "Name", placeholder: "e.g. Part two, Act III, The turn", confirmLabel: "Add section" });
+    const title = await promptDialog({ title: "A new part of the trunk", label: "Name", placeholder: "e.g. The turn, Act III, Part two", confirmLabel: "Add part" });
     if (title) await createSection({ projectId: project.id, boardId: data.board.id, title }).catch(toastError);
   };
   const moveSection = async (index: number, dir: -1 | 1) => {
@@ -72,9 +73,9 @@ export function StructureBoard({
   const draft = async () => {
     setBusy(true);
     try {
-      const doc = await draftFromStructure(project.id);
-      toast("A new draft, scaffolded from your structure. Your existing drafts are untouched.");
-      navigate(projectPath(project.id, "write"), { doc: doc.id });
+      const doc = await draftFromStructure(project.id, { title: "Draft from the trunk" });
+      toast("A new draft has grown from the trunk, in order. Your other drafts are untouched.");
+      navigate(partPath(project.id, "trunk"), { view: "draft", doc: doc.id });
     } catch (e) {
       toastError(e);
     } finally {
@@ -155,30 +156,33 @@ export function StructureBoard({
     <div className="structure">
       <div className="structure-bar">
         <div>
-          <h2 className="board-name">{data.board.title}</h2>
+          <h2 className="board-name">What you carry, in order</h2>
           <p className="board-hint">
-            {plural(data.cards.length, "card")} in {plural(sectionCols.length, "section")} · drag to reorder, or use each card's menu
+            {plural(data.cards.length, "piece")} carried, in {plural(sectionCols.length, "part")} · drag to reorder, or Alt + arrow keys
           </p>
         </div>
         <div className="row gap-2">
+          <Button size="sm" variant="ghost" icon={IconLeaf} onClick={() => navigate(partPath(project.id, "leaves"))}>
+            Carry from leaves
+          </Button>
           <Button size="sm" variant="ghost" icon={IconOutline} onClick={onToggleOutline}>
             Outline view
           </Button>
           <Button size="sm" icon={IconDocPlus} onClick={() => void draft()} busy={busy} disabled={!data.cards.length}>
-            Draft from structure
+            Grow a draft
           </Button>
         </div>
       </div>
       {columns.length === 0 ? (
         <EmptyState
-          title="Give the work a shape"
+          title="Give the trunk a shape"
           actions={
             <Button variant="primary" icon={IconPlus} onClick={() => void addSection()}>
-              Add a section
+              Add a part
             </Button>
           }
         >
-          Sections are the big movements — parts, acts, the turn of an argument. Cards are the pieces inside them, in order.
+          Parts are the big movements — the opening, the turn, the close. Carry leaves into them, in the order the piece should go.
         </EmptyState>
       ) : (
         <div className={cx("columns scroll-x", drag && "is-dragging")}>
@@ -193,16 +197,16 @@ export function StructureBoard({
                   if (el) colRefs.current.set(key, el);
                   else colRefs.current.delete(key);
                 }}
-                aria-label={col.section?.title ?? "Unplaced cards"}
+                aria-label={col.section?.title ?? "Not placed yet"}
               >
                 <header className="column-head">
                   <span className="column-num" aria-hidden>
                     {col.section ? ci + 1 : "–"}
                   </span>
                   {col.section ? (
-                    <InlineEdit label="Section name" className="column-title" value={col.section.title} onCommit={(title) => void updateSection(col.section!.id, { title }).catch(toastError)} />
+                    <InlineEdit label="Part name" className="column-title" value={col.section.title} onCommit={(title) => void updateSection(col.section!.id, { title }).catch(toastError)} />
                   ) : (
-                    <span className="column-title">Unplaced</span>
+                    <span className="column-title">Not placed yet</span>
                   )}
                   <span className="column-count">{col.cards.length}</span>
                   {col.section && (
@@ -214,12 +218,12 @@ export function StructureBoard({
                         { label: "Move right", icon: IconArrowRight, disabled: ci >= sectionCols.length - 1, onSelect: () => void moveSection(ci, 1) },
                         { separator: true },
                         {
-                          label: "Remove section (keep cards)",
+                          label: "Remove part (keep its pieces)",
                           icon: IconTrash,
                           danger: true,
                           onSelect: () =>
                             void deleteSection(col.section!.id)
-                              .then((restore) => toastUndo(`Removed "${col.section!.title}". Its cards moved to Unplaced.`, restore))
+                              .then((restore) => toastUndo(`Removed "${col.section!.title}". Its pieces moved to “Not placed yet”.`, restore))
                               .catch(toastError),
                         },
                       ]}
@@ -276,7 +280,7 @@ export function StructureBoard({
           })}
           <button type="button" className="column column-new" onClick={() => void addSection()}>
             <IconPlus size={16} aria-hidden />
-            Add section
+            Add a part
           </button>
         </div>
       )}

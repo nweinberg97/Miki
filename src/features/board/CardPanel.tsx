@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { addLink, createDecision, createDocument, deleteCards, removeLink, sendCardToBoard, updateCard } from "../../data/repo";
+import { addLink, createDecision, createDocument, deleteCards, removeLink, updateCard } from "../../data/repo";
 import type { Card, CardType, Project } from "../../data/types";
 import { buildDoc, docToPlainText } from "../../editor/serialize";
-import { navigate, projectPath, href } from "../../lib/router";
+import { navigate, href } from "../../lib/router";
 import { cx, wordCount } from "../../lib/util";
-import { IconArrowRight, IconConnect, IconDoc, IconMoveTo, IconSignpost, IconSource, IconTrash, IconX } from "../../ui/icons";
+import { IconArrowRight, IconConnect, IconDoc, IconSignpost, IconSource, IconTrash, IconX } from "../../ui/icons";
 import { Menu } from "../../ui/Menu";
-import { toast, toastError, toastUndo } from "../../ui/toast";
+import { toastError, toastUndo } from "../../ui/toast";
 import { Button, IconButton, Select } from "../../ui/ui";
-import { EntityChip, EntityPicker, entityHref, linksFor, useProjectEntities } from "../shared/entities";
+import { EntityChip, EntityPicker, linksFor, useProjectEntities } from "../shared/entities";
+import { entityHref, partPath } from "../project/modes";
 import type { BoardData } from "./BoardMode";
 import { CARD_META, LINK_KINDS } from "./cardMeta";
-import { orderStructure } from "./structureDoc";
 
 /** The focused editing surface for a card. Slides over the board so the card keeps its place. */
 export function CardPanel({ project, card, data, onClose }: { project: Project; card: Card; data: BoardData; onClose: () => void }) {
@@ -63,21 +63,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
   }, [title, body]);
 
   const isIdeas = data.board.kind === "ideas";
-  const otherSections = data.otherBoard ? orderStructure(data.otherSections, []).filter((c) => c.section) : [];
   const links = linksFor(data.links, { type: "card", id: card.id });
-
-  const sendToOther = async (sectionId: string | null) => {
-    if (!data.otherBoard) return;
-    try {
-      persist();
-      const copy = await sendCardToBoard(card.id, data.otherBoard.id, sectionId);
-      toast(isIdeas ? "Added to the structure. The original stays here." : "Copied to the idea space.", {
-        action: { label: "Go there", onClick: () => navigate(projectPath(project.id, isIdeas ? "arrange" : "explore"), { card: copy.id }) },
-      });
-    } catch (e) {
-      toastError(e);
-    }
-  };
 
   const startDraft = async () => {
     try {
@@ -85,7 +71,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
       const content = buildDoc([{ kind: "h", level: 2, text: title || "Untitled" }, ...(body.trim() ? [{ kind: "quote" as const, text: body.trim() }] : []), { kind: "p", text: "" }]);
       const plain = docToPlainText(content);
       const doc = await createDocument(project.id, { title: title || "Untitled", content, plainText: plain, wordCount: wordCount(plain), sourceCardId: card.id });
-      navigate(projectPath(project.id, "write"), { doc: doc.id });
+      navigate(partPath(project.id, "trunk"), { view: "draft", doc: doc.id });
     } catch (e) {
       toastError(e);
     }
@@ -95,7 +81,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
     try {
       persist();
       const d = await createDecision(project.id, { question: title || body.slice(0, 120), linkTo: { type: "card", id: card.id } });
-      navigate(projectPath(project.id, "discern"), { decision: d.id });
+      navigate(partPath(project.id, "trunk"), { view: "choices", decision: d.id });
     } catch (e) {
       toastError(e);
     }
@@ -105,7 +91,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
     try {
       const restore = await deleteCards([card.id]);
       onClose();
-      toastUndo("Card deleted.", restore);
+      toastUndo(card.source?.type === "note" ? "Taken off the trunk. The leaf it came from is still there." : "Taken off the trunk.", restore);
     } catch (e) {
       toastError(e);
     }
@@ -153,7 +139,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
           value={title}
           rows={1}
           placeholder="Name it in a few words"
-          aria-label="Card title"
+          aria-label="Title"
           onChange={(e) => {
             setTitle(e.target.value.replace(/\n/g, " "));
             schedule();
@@ -171,7 +157,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
           value={body}
           rows={4}
           placeholder="What's the idea? Write as much or as little as you like."
-          aria-label="Card notes"
+          aria-label="Notes"
           onChange={(e) => {
             setBody(e.target.value);
             schedule();
@@ -183,16 +169,16 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
           <a className="card-source" href={entityHref(project.id, source, card.source?.excerpt ? { hl: card.source.excerpt.slice(0, 160) } : {})}>
             <IconSource size={14} aria-hidden />
             <span className="grow">
-              <span className="card-source-label">From {source.type === "transcript" ? "your recording" : source.group.toLowerCase()}: {source.title}</span>
+              <span className="card-source-label">From {source.type === "transcript" ? "your recording" : source.type === "note" ? "a leaf" : source.group.toLowerCase()}: {source.title}</span>
               {card.source?.excerpt && <span className="card-source-excerpt">“{card.source.excerpt}”</span>}
             </span>
           </a>
         )}
 
         <section className="card-panel-section">
-          <h3 className="card-panel-label">{isIdeas ? "Cluster" : "Section"}</h3>
+          <h3 className="card-panel-label">{isIdeas ? "Cluster" : "Part"}</h3>
           <Select
-            label={isIdeas ? "Cluster" : "Section"}
+            label={isIdeas ? "Cluster" : "Part"}
             value={card.sectionId ?? ""}
             onChange={(v) => {
               if (isIdeas) {
@@ -204,7 +190,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
                 void updateCard(card.id, { sectionId: v || null, order: count }).catch(toastError);
               }
             }}
-            options={[{ value: "", label: isIdeas ? "No cluster" : "Unplaced" }, ...[...data.sections].sort((a, b) => a.order - b.order).map((s) => ({ value: s.id, label: s.title }))]}
+            options={[{ value: "", label: isIdeas ? "No cluster" : "Not placed yet" }, ...[...data.sections].sort((a, b) => a.order - b.order).map((s) => ({ value: s.id, label: s.title }))]}
           />
         </section>
 
@@ -232,7 +218,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
           <h3 className="card-panel-label">Next</h3>
           <div className="card-actions">
             {card.docId ? (
-              <a className="card-action" href={href(projectPath(project.id, "write"), { doc: card.docId })}>
+              <a className="card-action" href={href(partPath(project.id, "trunk"), { view: "draft", doc: card.docId })}>
                 <IconDoc size={15} aria-hidden />
                 <span className="grow">Open its draft</span>
                 <IconArrowRight size={14} aria-hidden />
@@ -240,39 +226,21 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
             ) : (
               <button type="button" className="card-action" onClick={() => void startDraft()}>
                 <IconDoc size={15} aria-hidden />
-                <span className="grow">Start a draft from this card</span>
+                <span className="grow">Start a draft from this piece</span>
                 <IconArrowRight size={14} aria-hidden />
               </button>
             )}
-            {data.otherBoard && (
-              <Menu
-                label={isIdeas ? "Add to structure" : "Copy to idea space"}
-                align="start"
-                trigger={(t) => (
-                  <button {...t} type="button" className="card-action">
-                    <IconMoveTo size={15} aria-hidden />
-                    <span className="grow">{isIdeas ? "Add to the structure…" : "Copy to the idea space"}</span>
-                    <IconArrowRight size={14} aria-hidden />
-                  </button>
-                )}
-                items={
-                  isIdeas
-                    ? [...otherSections.map((c) => ({ label: c.section!.title, onSelect: () => void sendToOther(c.section!.id) })), { separator: true as const }, { label: "Unplaced", onSelect: () => void sendToOther(null) }]
-                    : [{ label: "Copy to the idea space", onSelect: () => void sendToOther(null) }]
-                }
-              />
-            )}
             {card.decisionId ? (
-              <a className="card-action" href={href(projectPath(project.id, "discern"), { decision: card.decisionId })}>
+              <a className="card-action" href={href(partPath(project.id, "trunk"), { view: "choices", decision: card.decisionId })}>
                 <IconSignpost size={15} aria-hidden />
-                <span className="grow">Open the decision</span>
+                <span className="grow">Open the choice</span>
                 <IconArrowRight size={14} aria-hidden />
               </a>
             ) : (
               (card.type === "decision" || card.type === "question") && (
                 <button type="button" className="card-action" onClick={() => void recordDecision()}>
                   <IconSignpost size={15} aria-hidden />
-                  <span className="grow">Work through this as a decision</span>
+                  <span className="grow">Weigh this as a choice</span>
                   <IconArrowRight size={14} aria-hidden />
                 </button>
               )
@@ -283,7 +251,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
       <footer className="card-panel-foot">
         <span className="faint small">Edits save automatically</span>
         <Button size="sm" variant="ghost" icon={IconTrash} className={cx("danger-text")} onClick={() => void remove()}>
-          Delete
+          Take off the trunk
         </Button>
       </footer>
       <EntityPicker

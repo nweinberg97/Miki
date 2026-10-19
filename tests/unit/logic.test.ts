@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { moveInColumns, orderStructure, structureBlocks } from "../../src/features/board/structureDoc.ts";
-import { suggestionsFor, type ProjectSnapshot } from "../../src/features/project/suggestions.ts";
+import { nextQuestion, suggestionsFor, type ProjectSnapshot } from "../../src/features/project/suggestions.ts";
 import { splitFragments } from "../../src/features/capture/derive.ts";
 import { parseTranscriptFile, timeForExcerpt } from "../../src/transcription/engines.ts";
 import { findFreeSpot, CARD_W } from "../../src/data/repo.ts";
 import { deriveTitle, relativeTime, slugify, wordCount } from "../../src/lib/util.ts";
-import type { Card, Section, Project } from "../../src/data/types.ts";
+import type { Card, Note, Section, Project } from "../../src/data/types.ts";
 
 const t = 1_700_000_000_000;
 const section = (id: string, order: number): Section => ({ id, projectId: "p", boardId: "b", title: id.toUpperCase(), x: 0, y: 0, w: 0, h: 0, collapsed: false, order, createdAt: t, updatedAt: t });
@@ -84,31 +84,39 @@ test("WebVTT and SRT transcripts become text with timestamps", () => {
   assert.equal(timeForExcerpt("x", [], "x"), undefined);
 });
 
-test("suggestions are specific, rule-based, and only appear when useful", () => {
-  const project: Project = { id: "p", title: "P", description: "", type: "essay", thread: "", isSample: false, archived: false, createdAt: t, updatedAt: t, lastOpenedAt: t };
-  const empty: ProjectSnapshot = { project, docs: [], notes: [], recordings: [], transcripts: [], boards: [], sections: [], cards: [], decisions: [], steps: [] };
-  assert.deepEqual(suggestionsFor(empty, t), []);
+test("Miki asks: rule-based, one part at a time, and quiet when nothing is needed", () => {
+  const project: Project = { id: "p", title: "P", description: "", type: "essay", purpose: "", audience: "", thread: "", isSample: false, archived: false, createdAt: t, updatedAt: t, lastOpenedAt: t };
+  const empty: ProjectSnapshot = { project, docs: [], notes: [], recordings: [], transcripts: [], parts: [], trunkCards: [], decisions: [], refs: [] };
+  // A new project is asked about its roots first, and invited to start leafing.
+  assert.deepEqual(
+    suggestionsFor(empty, t).map((s) => s.id),
+    ["roots-purpose", "leaves-first"],
+  );
+  assert.equal(nextQuestion(empty, "trunk", [], t), undefined);
 
-  const boards = [
-    { id: "ideas", projectId: "p", kind: "ideas" as const, title: "Ideas", createdAt: t, updatedAt: t },
-    { id: "structure", projectId: "p", kind: "structure" as const, title: "Outline", createdAt: t, updatedAt: t },
-  ];
-  const promising = { ...section("prom", 0), boardId: "ideas", title: "Promising" };
-  const snap: ProjectSnapshot = {
-    ...empty,
-    boards,
-    sections: [promising],
-    cards: [card("i1", "prom", 0, { boardId: "ideas" }), card("i2", "prom", 1, { boardId: "ideas" }), card("s1", null, 0, { boardId: "structure" }), card("s2", null, 1, { boardId: "structure" }), card("s3", null, 2, { boardId: "structure" })],
+  const leaf = (id: string, extra: Partial<Note> = {}): Note => ({ id, projectId: "p", title: "", body: id, kind: "note", createdAt: t, updatedAt: t, ...extra });
+  const rooted = { ...project, purpose: "To persuade", audience: "Friends" };
+  const growing: ProjectSnapshot = { ...empty, project: rooted, notes: ["a", "b", "c", "d", "e"].map((id) => leaf(id)).concat(leaf("f", { fallen: true })) };
+  const ids = suggestionsFor(growing, t).map((s) => s.id);
+  assert.ok(ids.includes("roots-thread"));
+  assert.ok(ids.includes("leaves-discern"));
+  assert.ok(ids.includes("trunk-empty"));
+  assert.match(suggestionsFor(growing, t).find((s) => s.id === "leaves-discern")!.text, /5 leaves/); // fallen leaves don't count
+
+  const trunk: ProjectSnapshot = {
+    ...growing,
+    project: { ...rooted, thread: "The thread" },
+    trunkCards: [card("s1", null, 0, { source: { type: "note", id: "a" } }), card("s2", null, 1), card("s3", null, 2)],
     decisions: [{ id: "d", projectId: "p", question: "Which way?", options: [], chosenOptionId: null, rationale: "", tradeoffs: "", next: "", status: "open", createdAt: t - 3 * 86400000, updatedAt: t }],
   };
-  const ids = suggestionsFor(snap, t).map((s) => s.id);
-  assert.ok(ids.includes("thread-from-promising"));
-  assert.ok(ids.includes("draft-from-structure"));
-  assert.ok(ids.includes("open-decision:d"));
-  // Once there's a thread and a draft, those nudges go away.
-  const after = suggestionsFor({ ...snap, project: { ...project, thread: "The thread" }, docs: [{ wordCount: 400 } as never] }, t).map((s) => s.id);
-  assert.ok(!after.includes("thread-from-promising"));
-  assert.ok(!after.includes("draft-from-structure"));
+  const trunkIds = suggestionsFor(trunk, t).map((s) => s.id);
+  assert.ok(trunkIds.includes("trunk-draft"));
+  assert.ok(trunkIds.includes("trunk-open:d"));
+  assert.ok(!trunkIds.includes("trunk-empty"));
+  // Dismissing one shows the next, and a real draft quiets the draft nudge.
+  assert.equal(nextQuestion(trunk, "trunk", [], t)?.id, "trunk-draft");
+  assert.equal(nextQuestion(trunk, "trunk", ["trunk-draft"], t)?.id, "trunk-open:d");
+  assert.ok(!suggestionsFor({ ...trunk, docs: [{ wordCount: 400 } as never] }, t).some((s) => s.id === "trunk-draft"));
 });
 
 test("text utilities", () => {

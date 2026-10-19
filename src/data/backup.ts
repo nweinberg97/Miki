@@ -60,7 +60,8 @@ async function serialize(dump: Dump, includeAudio: boolean): Promise<Backup> {
   const stores: Record<string, unknown[]> = {};
   for (const [store, rows] of Object.entries(dump) as [StoreName, unknown[]][]) {
     if (store === "audio") continue;
-    stores[store] = rows;
+    // Internal bookkeeping (one-time migrations) belongs to this browser, not to the backup.
+    stores[store] = store === "prefs" ? (rows as { key: string }[]).filter((r) => !r.key.startsWith("migrated:")) : rows;
   }
   if (includeAudio && dump.audio) {
     stores.audio = await Promise.all(dump.audio.map(async (a) => ({ id: a.id, dataUrl: await blobToDataUrl(a.blob) })));

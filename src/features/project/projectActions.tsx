@@ -15,7 +15,7 @@ export async function renameProject(p: Project) {
 export async function toggleArchive(p: Project) {
   try {
     await updateProject(p.id, { archived: !p.archived });
-    toast(p.archived ? `"${p.title}" is back in the studio.` : `"${p.title}" archived. Find it under "Archived".`);
+    toast(p.archived ? `"${p.title}" is back in the grove.` : `"${p.title}" is resting. Find it under "Resting" in the grove.`);
   } catch (e) {
     toastError(e);
   }

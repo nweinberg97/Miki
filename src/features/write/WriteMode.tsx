@@ -6,7 +6,8 @@ import type { Document, DocStatus, Project } from "../../data/types";
 import { useAutosave, readRecovery, clearRecovery, type SaveStatus } from "../../editor/autosave";
 import { Editor, type EditorHandle } from "../../editor/Editor";
 import { EXPORT_FORMATS, exportPieces } from "../../editor/exporters";
-import { href, projectPath, setQuery } from "../../lib/router";
+import { href, setQuery } from "../../lib/router";
+import { partPath } from "../project/modes";
 import { ui } from "../../lib/store";
 import { byOrder, cx, plural, readingMinutes, relativeTime } from "../../lib/util";
 import { promptDialog } from "../../ui/Dialog";
@@ -47,7 +48,7 @@ export function WriteMode({ project, query }: { project: Project; query: URLSear
   const focusMode = ui.use((s) => s.focusMode);
   const [materialOpen, setMaterialOpen] = useState(() => {
     try {
-      return localStorage.getItem("miki:material") === "1";
+      return localStorage.getItem("miki:material") !== "0";
     } catch {
       return false;
     }
@@ -93,10 +94,10 @@ export function WriteMode({ project, query }: { project: Project; query: URLSear
         <aside className="doc-nav" aria-label="Documents">
           <div className="doc-nav-head">
             <h2 className="eyebrow">Drafts</h2>
-            <IconButton icon={IconDocPlus} label="New document" size="sm" onClick={() => void newDoc()} />
+            <IconButton icon={IconDocPlus} label="New draft" size="sm" onClick={() => void newDoc()} />
           </div>
           {sorted.length === 0 ? (
-            <p className="doc-nav-empty">No documents yet.</p>
+            <p className="doc-nav-empty">No drafts yet.</p>
           ) : (
             <ul role="list" className="doc-list">
               {sorted.map((d, i) => (
@@ -127,11 +128,11 @@ export function WriteMode({ project, query }: { project: Project; query: URLSear
             title="A blank page, when you want one"
             actions={
               <Button variant="primary" icon={IconDocPlus} onClick={() => void newDoc()}>
-                New document
+                New draft
               </Button>
             }
           >
-            Draft here whenever you're ready. Your notes, ideas, and structure stay one click away in the side panel.
+            The draft grows along the trunk. Start a blank page, or go to Shape and grow a draft from what you carried — your leaves and trunk stay beside you here.
           </EmptyState>
         )}
       </section>
@@ -163,7 +164,7 @@ function DocRow({ doc, active, project, index, all }: { doc: Document; active: b
   };
   return (
     <li className={cx("doc-row", active && "is-active")}>
-      <a className="doc-row-link" href={href(projectPath(project.id, "write"), { doc: doc.id })} aria-current={active ? "page" : undefined}>
+      <a className="doc-row-link" href={href(partPath(project.id, "trunk"), { view: "draft", doc: doc.id })} aria-current={active ? "page" : undefined}>
         <span className={cx("doc-status-dot", `is-${doc.status}`)} aria-hidden />
         <span className="grow">
           <span className="doc-row-title">{doc.title || "Untitled"}</span>
@@ -278,7 +279,7 @@ function DocEditor({
             items={[{ heading: "Export this document" }, ...EXPORT_FORMATS.map((f) => ({ label: f.label, onSelect: () => void exportAs(f.format) }))]}
           />
           <IconButton icon={focusMode ? IconMinimize : IconMaximize} label={focusMode ? "Leave focus mode (Esc)" : "Focus mode"} onClick={() => ui.set((s) => ({ focusMode: !s.focusMode }))} />
-          {!focusMode && <IconButton icon={materialOpen ? IconPanelClose : IconPanelOpen} label={materialOpen ? "Hide project material" : "Show project material"} pressed={materialOpen} onClick={onToggleMaterial} />}
+          {!focusMode && <IconButton icon={materialOpen ? IconPanelClose : IconPanelOpen} label={materialOpen ? "Hide the trunk and leaves" : "Show the trunk and leaves beside the draft"} pressed={materialOpen} onClick={onToggleMaterial} />}
         </div>
       </div>
 
@@ -327,9 +328,9 @@ function DocEditor({
           <header className="doc-head">
             <InlineEdit label="Document title" className="doc-title" value={doc.title} onCommit={(title) => void updateDocument(doc.id, { title: title || "Untitled" }).catch(toastError)} />
             {sourceCard && (
-              <a className="chip doc-source" href={href(projectPath(project.id, "arrange"), { card: sourceCard.id })}>
+              <a className="chip doc-source" href={href(partPath(project.id, "trunk"), { view: "shape", card: sourceCard.id })}>
                 <IconSource size={13} aria-hidden />
-                <span>From card: {sourceCard.title || "Untitled"}</span>
+                <span>From the trunk: {sourceCard.title || "Untitled"}</span>
               </a>
             )}
           </header>
