@@ -1,4 +1,4 @@
-import { partPath } from "../project/modes";
+import { partPath, viewLoc } from "../project/modes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { db } from "../../data/db";
 import { useLive } from "../../data/hooks";
@@ -152,11 +152,14 @@ export function CommandPalette() {
       if (!s) continue;
       out.push({
         key: `c:${c.id}`,
-        group: "On the trunk",
+        group: "Cards",
         title: c.title || truncate(c.body, 60),
         detail: `${where(c.projectId)} · ${snippet(c.body, needle)}`,
         icon: IconIdea,
-        run: go(() => navigate(partPath(c.projectId, "trunk"), { card: c.id })),
+        run: go(async () => {
+          const b = await db.get("boards", c.boardId);
+          navigate(...viewLoc(c.projectId, b?.kind === "structure" ? "arrange" : "explore", { card: c.id }));
+        }),
         score: s,
       });
     }
@@ -179,9 +182,9 @@ export function CommandPalette() {
     }
     for (const d of data.decisions) {
       const s = score(d.question, `${d.rationale} ${d.options.map((o) => o.text).join(" ")}`, needle);
-      if (s) out.push({ key: `x:${d.id}`, group: "Choices", title: d.question || "Untitled choice", detail: where(d.projectId), icon: IconSignpost, run: go(() => navigate(partPath(d.projectId, "trunk"), { view: "choices", decision: d.id })), score: s });
+      if (s) out.push({ key: `x:${d.id}`, group: "Choices", title: d.question || "Untitled choice", detail: where(d.projectId), icon: IconSignpost, run: go(() => navigate(partPath(d.projectId, "trunk"), { view: "discern", decision: d.id })), score: s });
     }
-    const order = ["Actions", "Projects", "Drafts", "Leaves & seeds", "On the trunk", "Spoken", "Roots", "Choices"];
+    const order = ["Actions", "Projects", "Drafts", "Leaves & seeds", "Cards", "Spoken", "Roots", "Choices"];
     return out.sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || b.score - a.score).slice(0, 60);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, data]);

@@ -8,12 +8,15 @@ import { toastError } from "../../ui/toast";
 import { Segmented, TextArea } from "../../ui/ui";
 import { ReferenceMode } from "../reference/ReferenceMode";
 import { MikiAsks } from "./MikiAsks";
+import { OverviewMode } from "./OverviewMode";
 
 type Field = "purpose" | "audience" | "thread";
 
 /** 根 Roots — intention. Why the piece exists, who it's for, and what it grows from. */
 export function RootsMode({ project, query }: { project: Project; query: URLSearchParams }) {
-  const view = query.get("view") === "sources" || query.get("ref") ? "sources" : "intention";
+  const v = query.get("view");
+  const view =
+    v === "sources" || query.get("ref") ? "sources" : v === "overview" ? "overview" : v === "intention" || query.get("focus") ? "intention" : project.purpose?.trim() ? "overview" : "intention";
   const tpl = projectTemplate(project.type);
   const people = tpl.referenceKinds.includes("character");
 
@@ -24,14 +27,21 @@ export function RootsMode({ project, query }: { project: Project; query: URLSear
           size="sm"
           label="Roots"
           value={view}
-          onChange={(v) => setQuery({ view: v === "intention" ? null : v, ref: null, new: null })}
+          onChange={(v) => setQuery({ view: v, ref: null, new: null, focus: null })}
           options={[
+            { value: "overview", label: "Overview" },
             { value: "intention", label: "Intention" },
             { value: "sources", label: people ? "People, places & sources" : "Sources & themes" },
           ]}
         />
       </div>
-      {view === "intention" ? <Intention project={project} focus={query.get("focus") as Field | null} /> : <ReferenceMode project={project} query={query} />}
+      {view === "overview" ? (
+        <OverviewMode project={project} />
+      ) : view === "intention" ? (
+        <Intention project={project} focus={query.get("focus") as Field | null} />
+      ) : (
+        <ReferenceMode project={project} query={query} />
+      )}
     </div>
   );
 }

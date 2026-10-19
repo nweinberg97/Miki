@@ -45,7 +45,7 @@ export function useProjectEntities(projectId: string) {
           id: c.id,
           title: c.title || truncate(c.body, 60) || "Untitled card",
           detail: c.title ? truncate(c.body, 90) : "",
-          group: c.boardId === structureId ? "On the trunk" : "Leaves",
+          group: c.boardId === structureId ? "On the trunk" : "Storyboard",
         })),
         ...notes.map((n) => ({ type: "note" as const, id: n.id, title: n.title || truncate(n.body, 60) || "Untitled leaf", detail: n.title ? truncate(n.body, 90) : "", group: n.fallen ? "Fallen leaves" : "Leaves" })),
         ...docs.map((d) => ({ type: "document" as const, id: d.id, title: d.title, detail: `${d.wordCount} words`, group: "Drafts" })),

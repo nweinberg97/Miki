@@ -64,8 +64,8 @@ export function BoardList({
       <div className="board-list-inner">
         <div className="structure-bar">
           <div>
-            <h2 className="board-name">{data.board.title}</h2>
-            <p className="board-hint">{kind === "structure" ? "In order, top to bottom." : narrow ? "Grouped by cluster. Open the idea space on a larger screen to arrange spatially." : ""}</p>
+            <h2 className="board-name">{kind === "structure" ? "What you carry, in order" : "Storyboard"}</h2>
+            <p className="board-hint">{kind === "structure" ? "In order, top to bottom." : narrow ? "Grouped by cluster. Open the storyboard on a larger screen to arrange it spatially." : ""}</p>
           </div>
           {!narrow && outline && (
             <Button size="sm" variant="ghost" icon={IconColumns} onClick={onToggleOutline}>

@@ -10,7 +10,7 @@ import { IconPlus, IconQuote, IconX } from "../../ui/icons";
 import { IconButton, Segmented, TextInput } from "../../ui/ui";
 import { orderStructure } from "../board/structureDoc";
 
-type Tab = "structure" | "notes" | "refs";
+type Tab = "structure" | "ideas" | "notes" | "refs";
 
 interface Item {
   id: string;
@@ -52,6 +52,15 @@ export function MaterialPanel({ project, onInsert, onClose }: { project: Project
         items: col.cards.map((c) => ({ id: c.id, title: c.title, body: c.body, to: partPath(project.id, "trunk") + `?view=shape&card=${c.id}` })),
       }));
     }
+    if (tab === "ideas") {
+      const ideas = data.boards.find((b) => b.kind === "ideas");
+      const secs = data.sections.filter((s) => s.boardId === ideas?.id).sort((a, b) => a.order - b.order);
+      const cards = data.cards.filter((c) => c.boardId === ideas?.id);
+      return [
+        ...secs.map((s) => ({ label: s.title, items: cards.filter((c) => c.sectionId === s.id) })),
+        { label: "Loose", items: cards.filter((c) => !c.sectionId || !secs.some((s) => s.id === c.sectionId)) },
+      ].map((g) => ({ label: g.label, items: g.items.map((c) => ({ id: c.id, title: c.title, body: c.body, to: partPath(project.id, "leaves") + `?view=storyboard&card=${c.id}` })) }));
+    }
     if (tab === "notes") {
       return [
         { label: "Leaves", items: data.notes.filter((n) => !n.fallen).sort((a, b) => b.updatedAt - a.updatedAt).map((n) => ({ id: n.id, title: n.title, body: n.body, meta: n.kind === "note" ? "leaf" : n.kind, to: partPath(project.id, "leaves") + `?note=${n.id}` })) },
@@ -91,6 +100,7 @@ export function MaterialPanel({ project, onInsert, onClose }: { project: Project
         onChange={setTab}
         options={[
           { value: "structure", label: "Trunk" },
+          { value: "ideas", label: "Storyboard" },
           { value: "notes", label: "Leaves" },
           { value: "refs", label: "Roots" },
         ]}

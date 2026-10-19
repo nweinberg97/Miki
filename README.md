@@ -6,9 +6,9 @@
 
 | | Part | Principle | What you do there |
 | --- | --- | --- | --- |
-| 根 | **Roots** | Intention | Say why the piece exists, who it's for, and its thread (one sentence). Keep the people, places and sources it grows from. |
-| 葉 | **Leaves** | Ideas | Capture freely — typed or spoken. Recordings are transcribed (optionally) and any passage can become a leaf. Leaves you *let fall* are kept, never deleted. |
-| 幹 | **Trunk** | Discernment | Carry the leaves that matter onto the trunk, in order. Weigh choices and keep the reasons. Grow a draft along the trunk and write it in a quiet editor. |
+| 根 | **Roots** | Intention | **Overview** of the whole project; **Intention** — why the piece exists, who it's for, its thread; **Sources** — the people, places and research it grows from. |
+| 葉 | **Leaves** | Ideas | **Captured** — everything typed or spoken, with optional transcription; let leaves fall (kept, never deleted). **Storyboard** — a bounded visual board where ideas spread out, cluster (*Collecting · Promising · Set aside*) and connect. |
+| 幹 | **Trunk** | Discernment | **Shape** — ordered parts and pieces; **Draft** — a quiet editor with the trunk and storyboard beside it; **Discern** — guided steps and choices with their reasons. |
 
 Home is your **grove**: each project drawn as a tree whose shape follows the real state of the work (a seed, rooting, leafing, standing). Thoughts that don't belong anywhere yet wait in **Seeds**.
 
@@ -140,7 +140,9 @@ If none is configured, the recording is kept and the UI says so — no placehold
 - Trunk: the thread; ordered parts and pieces, drag between parts, Alt+arrow keyboard reordering, outline view, "Grow a draft" along the trunk, a piece → its own draft (linked both ways); choices with options, the choice, the reason, trade-offs and next step, "make this the thread"
 - Editor: headings, bold/italic, lists, quotes, links, dividers, undo/redo, Markdown shortcuts and paste, smart quotes, selection toolbar, word count and reading time, focus mode, trunk & leaves beside the draft, versions, exports (MD, TXT, HTML, print/PDF, DOCX), manuscript export of chosen drafts
 - ⌘K search across everything, keyboard shortcuts (`?`, `1`/`2`/`3` for the parts), light/dark/system theme, writing size and line length, responsive layouts for phones, reduced-motion support, installable PWA with offline app shell
-- Older data: loose cards from the earlier "idea space" become leaves automatically (once), keeping their text, sources and connections
+- Storyboard: pan, zoom, fit, drag, multi-select (shift-click, shift-drag), keyboard nudge/delete/open, clusters (create, rename, move, resize, collapse), typed cards, connections (supports / contradicts / depends / leads), find & filter; carry any card onto the trunk
+- Discern: guided processes from templates or blank, editable/reorderable/skippable steps, context panels that surface existing material, save your own process templates
+- Live site: GitHub Pages serves the built app (`index.html`, rebuilt by `.github/workflows/pages.yml` on every push to `main`)
 
 ## Not implemented (and why)
 

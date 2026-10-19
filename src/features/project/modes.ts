@@ -8,9 +8,9 @@ import { href, projectPath } from "../../lib/router";
  *   幹 Trunk  — discernment: the thread, what you carry in order, your choices, the draft
  */
 export const PARTS: { part: Part; kanji: string; label: string; principle: string; line: string; key: string }[] = [
-  { part: "roots", kanji: "根", label: "Roots", principle: "Intention", line: "Why this piece exists, and who it's for.", key: "1" },
-  { part: "leaves", kanji: "葉", label: "Leaves", principle: "Ideas", line: "Everything you've captured. Let it grow freely.", key: "2" },
-  { part: "trunk", kanji: "幹", label: "Trunk", principle: "Discernment", line: "What you choose to carry, in order — and the draft.", key: "3" },
+  { part: "roots", kanji: "根", label: "Roots", principle: "Intention", line: "The overview, why this piece exists, who it's for, and what it grows from.", key: "1" },
+  { part: "leaves", kanji: "葉", label: "Leaves", principle: "Ideas", line: "Everything you've captured, and the storyboard where ideas spread out.", key: "2" },
+  { part: "trunk", kanji: "幹", label: "Trunk", principle: "Discernment", line: "The shape, the draft, and the choices that hold it up.", key: "3" },
 ];
 
 export function partInfo(part: Part) {
@@ -21,6 +21,7 @@ export function partInfo(part: Part) {
 export function toPart(mode: string | undefined, project?: Project): Part {
   switch (mode) {
     case "roots":
+    case "overview":
     case "reference":
       return "roots";
     case "leaves":
@@ -33,9 +34,8 @@ export function toPart(mode: string | undefined, project?: Project): Part {
     case "discern":
       return "trunk";
     default:
-      // No part given: start where the work is. Unrooted projects begin at the roots.
-      if (project && !project.purpose?.trim() && !project.thread.trim()) return "roots";
-      return project?.lastLocation?.mode ? toPart(project.lastLocation.mode) : "leaves";
+      // No part given: start where the writer left off, or at the roots (the overview).
+      return project?.lastLocation?.mode ? toPart(project.lastLocation.mode) : "roots";
   }
 }
 
@@ -46,17 +46,17 @@ export function partLabel(mode: Mode | undefined): string {
 export const partPath = (projectId: string, part: Part) => projectPath(projectId, part);
 
 /** Where a piece of project material lives. */
-export function entityHref(projectId: string, ref: EntityRef, extra: Record<string, string> = {}): string {
+export function entityHref(projectId: string, ref: EntityRef & { group?: string }, extra: Record<string, string> = {}): string {
   const at = (part: Part, q: Record<string, string>) => href(partPath(projectId, part), { ...q, ...extra });
   switch (ref.type) {
     case "document":
       return at("trunk", { view: "draft", doc: ref.id });
     case "card":
-      return at("trunk", { view: "shape", card: ref.id });
+      return ref.group === "Storyboard" ? at("leaves", { view: "storyboard", card: ref.id }) : at("trunk", { view: "shape", card: ref.id });
     case "decision":
-      return at("trunk", { view: "choices", decision: ref.id });
+      return at("trunk", { view: "discern", decision: ref.id });
     case "step":
-      return at("trunk", {});
+      return at("trunk", { view: "discern", step: ref.id });
     case "note":
       return at("leaves", { note: ref.id });
     case "transcript":
@@ -66,6 +66,24 @@ export function entityHref(projectId: string, ref: EntityRef, extra: Record<stri
     case "reference":
       return at("roots", { view: "sources", ref: ref.id });
     default:
-      return at("roots", {});
+      return at("roots", { view: "overview" });
   }
 }
+
+/** Where each of the PRD's views lives now: a part, and a view inside it. */
+const VIEW_OF: Record<string, [Part, string | null]> = {
+  overview: ["roots", "overview"],
+  reference: ["roots", "sources"],
+  capture: ["leaves", null],
+  explore: ["leaves", "storyboard"],
+  arrange: ["trunk", "shape"],
+  write: ["trunk", "draft"],
+  discern: ["trunk", "discern"],
+};
+
+export function viewLoc(projectId: string, view: string, q: Record<string, string> = {}): [string, Record<string, string>] {
+  const [part, v] = VIEW_OF[view] ?? [toPart(view), null];
+  return [partPath(projectId, part), v ? { view: v, ...q } : q];
+}
+
+export const viewHref = (projectId: string, view: string, q: Record<string, string> = {}) => href(...viewLoc(projectId, view, q));

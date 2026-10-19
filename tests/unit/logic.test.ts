@@ -86,7 +86,7 @@ test("WebVTT and SRT transcripts become text with timestamps", () => {
 
 test("Miki asks: rule-based, one part at a time, and quiet when nothing is needed", () => {
   const project: Project = { id: "p", title: "P", description: "", type: "essay", purpose: "", audience: "", thread: "", isSample: false, archived: false, createdAt: t, updatedAt: t, lastOpenedAt: t };
-  const empty: ProjectSnapshot = { project, docs: [], notes: [], recordings: [], transcripts: [], parts: [], trunkCards: [], decisions: [], refs: [] };
+  const empty: ProjectSnapshot = { project, docs: [], notes: [], recordings: [], transcripts: [], parts: [], trunkCards: [], storyCards: [], decisions: [], steps: [], refs: [] };
   // A new project is asked about its roots first, and invited to start leafing.
   assert.deepEqual(
     suggestionsFor(empty, t).map((s) => s.id),
@@ -101,6 +101,8 @@ test("Miki asks: rule-based, one part at a time, and quiet when nothing is neede
   assert.ok(ids.includes("roots-thread"));
   assert.ok(ids.includes("leaves-discern"));
   assert.ok(ids.includes("trunk-empty"));
+  assert.ok(ids.includes("leaves-storyboard"));
+  assert.ok(!suggestionsFor({ ...growing, storyCards: [card("i1", null, 0, { boardId: "ideas" })] }, t).some((s) => s.id === "leaves-storyboard"));
   assert.match(suggestionsFor(growing, t).find((s) => s.id === "leaves-discern")!.text, /5 leaves/); // fallen leaves don't count
 
   const trunk: ProjectSnapshot = {

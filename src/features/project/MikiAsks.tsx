@@ -14,7 +14,7 @@ import { nextQuestion, type ProjectSnapshot, type Suggestion } from "./suggestio
 
 export async function loadSnapshot(project: Project): Promise<ProjectSnapshot> {
   const id = project.id;
-  const [docs, notes, recordings, transcripts, boards, sections, cards, decisions, refs] = await Promise.all([
+  const [docs, notes, recordings, transcripts, boards, sections, cards, decisions, refs, steps] = await Promise.all([
     db.byIndex("documents", "projectId", id),
     db.byIndex("notes", "projectId", id),
     db.byIndex("recordings", "projectId", id),
@@ -24,6 +24,7 @@ export async function loadSnapshot(project: Project): Promise<ProjectSnapshot> {
     db.byIndex("cards", "projectId", id),
     db.byIndex("decisions", "projectId", id),
     db.byIndex("references", "projectId", id),
+    db.byIndex("steps", "projectId", id),
   ]);
   const trunk = boards.find((b) => b.kind === "structure");
   return {
@@ -34,14 +35,16 @@ export async function loadSnapshot(project: Project): Promise<ProjectSnapshot> {
     transcripts,
     parts: sections.filter((s) => s.boardId === trunk?.id),
     trunkCards: cards.filter((c) => c.boardId === trunk?.id),
+    storyCards: cards.filter((c) => c.boardId !== trunk?.id),
     decisions,
+    steps,
     refs,
   };
 }
 
 /** One gentle question at a time, from simple rules about the work — never generated text. */
 export function MikiAsks({ project, part, onFocusField }: { project: Project; part: Part; onFocusField?: (f: "purpose" | "audience" | "thread") => void }) {
-  const { data: snap } = useLive(() => loadSnapshot(project), [project], ["documents", "notes", "recordings", "transcripts", "sections", "cards", "decisions", "references"]);
+  const { data: snap } = useLive(() => loadSnapshot(project), [project], ["documents", "notes", "recordings", "transcripts", "sections", "cards", "decisions", "references", "steps"]);
   const key = `asks:dismissed:${project.id}`;
   const [dismissed, setDismissed] = useState<string[] | null>(null);
   useEffect(() => {

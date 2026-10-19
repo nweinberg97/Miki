@@ -15,8 +15,7 @@ import { PARTS, partPath, toPart } from "./modes";
 import { exportBackup, removeProject, renameProject, toggleArchive } from "./projectActions";
 import { RootsMode } from "./RootsMode";
 import { TrunkMode } from "./TrunkMode";
-import { MikiAsks } from "./MikiAsks";
-import { CaptureWorkspace } from "../capture/CaptureWorkspace";
+import { LeavesMode } from "./LeavesMode";
 import { ManuscriptExportDialog } from "../write/ManuscriptExportDialog";
 import "./project.css";
 
@@ -140,11 +139,7 @@ function PartView({ project, part, query }: { project: Project; part: Part; quer
     case "trunk":
       return <TrunkMode project={project} query={query} />;
     default:
-      return (
-        <div className="part-body leaves">
-          <CaptureWorkspace projectId={project.id} project={project} query={query} basePath={partPath(project.id, "leaves")} intro={<MikiAsks project={project} part="leaves" />} />
-        </div>
-      );
+      return <LeavesMode project={project} query={query} />;
   }
 }
 

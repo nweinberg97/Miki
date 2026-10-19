@@ -1,7 +1,7 @@
 // "Miki asks": one gentle, rule-based question at a time for each part of a project.
 // Deterministic — no AI, no claims of analysis. Each rule looks at the material and,
 // when useful, offers a single next step.
-import type { Card, Decision, Document, Note, Part, Project, Recording, Reference, Section, Transcript } from "../../data/types";
+import type { Card, Decision, Document, Note, Part, Project, Recording, Reference, Section, Step, Transcript } from "../../data/types";
 
 export interface ProjectSnapshot {
   project: Project;
@@ -12,7 +12,10 @@ export interface ProjectSnapshot {
   /** Sections and cards on the trunk (the structure board). */
   parts: Section[];
   trunkCards: Card[];
+  /** Cards on the storyboard (the spatial idea board). */
+  storyCards: Card[];
   decisions: Decision[];
+  steps: Step[];
   refs: Reference[];
 }
 
@@ -84,6 +87,16 @@ export function suggestionsFor(s: ProjectSnapshot, now = Date.now()): Suggestion
     });
   }
 
+  if (growing.length >= 4 && s.storyCards.length === 0) {
+    out.push({
+      id: "leaves-storyboard",
+      part: "leaves",
+      text: "Spread your leaves out on the storyboard. Seeing them side by side shows which ones belong together.",
+      actionLabel: "Open the storyboard",
+      action: { kind: "go", part: "leaves", query: { view: "storyboard" } },
+    });
+  }
+
   /* ---------------- trunk: discernment */
   if (s.trunkCards.length === 0 && leafCount > 0) {
     out.push({
@@ -104,6 +117,10 @@ export function suggestionsFor(s: ProjectSnapshot, now = Date.now()): Suggestion
   const stale = s.decisions.filter((d) => d.status === "open" && now - d.createdAt > 2 * DAY).sort((a, b) => a.createdAt - b.createdAt)[0];
   if (stale) {
     out.push({ id: `trunk-open:${stale.id}`, part: "trunk", text: `One choice is still open: “${stale.question || "untitled"}”.`, actionLabel: "Revisit", action: { kind: "go", part: "trunk", query: { decision: stale.id } } });
+  }
+  const nextStep = [...s.steps].sort((a, b) => a.order - b.order).find((x) => x.status === "open");
+  if (nextStep && s.steps.some((x) => x.status !== "open")) {
+    out.push({ id: `trunk-step:${nextStep.id}`, part: "trunk", text: `Next step in your process: ${nextStep.title}.`, actionLabel: "Open it", action: { kind: "go", part: "trunk", query: { view: "discern", step: nextStep.id } } });
   }
   const unexplained = s.decisions.find((d) => d.status === "decided" && !d.rationale.trim());
   if (unexplained) {

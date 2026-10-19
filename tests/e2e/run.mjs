@@ -92,8 +92,35 @@ test("Journey A: plant an essay, grow leaves, carry what matters onto the trunk,
   await view(page, "Fallen · 1").click();
   await page.locator(".capture-item", { hasText: "Apps count pages" }).waitFor();
 
+  // The storyboard: put a leaf on it, then drag a new card into "Promising".
+  await view(page, "Growing").click();
+  await page.locator(".capture-item", { hasText: "We read faster" }).click();
+  await page.getByRole("button", { name: "Put on the storyboard" }).click();
+  await page.getByText("Put on the storyboard.").waitFor();
+  await view(page, "Storyboard").click();
+  const canvas = page.locator(".canvas");
+  await canvas.waitFor();
+  await page.locator(".card", { hasText: "We read faster" }).waitFor();
+  await page.keyboard.press("Escape");
+  await page.locator(".frame", { hasText: "Promising" }).waitFor();
+  const box = await canvas.boundingBox();
+  await page.mouse.dblclick(box.x + box.width - 160, box.y + box.height - 160);
+  await page.getByLabel("Title", { exact: true }).fill("The design assumes speed is the goal");
+  await page.getByLabel("Notes", { exact: true }).fill("Streaks, minutes-to-read, page counts.");
+  await page.keyboard.press("Escape");
+  const card = page.locator(".card", { hasText: "The design assumes speed is the goal" });
+  await card.waitFor();
+  const target = await page.locator(".frame", { hasText: "Promising" }).boundingBox();
+  const cb = await card.boundingBox();
+  await page.mouse.move(cb.x + 40, cb.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(target.x + 80, target.y + 120, { steps: 12 });
+  await page.mouse.up();
+  await page.waitForFunction(() => document.querySelector(".frame.is-promising .frame-count")?.textContent === "1");
+
   // Roots: name the thread.
   await part(page, "Roots").click();
+  await view(page, "Intention").click();
   assert.equal(await page.getByLabel("Why does this piece exist?").inputValue(), "To give busy readers permission to read slower.");
   const thread = page.getByLabel("The thread", { exact: true });
   await thread.fill("Our tools are built for throughput, but understanding needs friction.");
@@ -248,7 +275,7 @@ test("Journey C: a story's trunk — scenes in order, characters in the roots, a
   await context.close();
 });
 
-test("Journey D: weigh a choice, keep the reasoning, and let it become the thread", async () => {
+test("Journey D: start from why, work through the guided steps, weigh a choice, and let it become the thread", async () => {
   const { context, page, errors } = await fresh();
   await page.getByRole("button", { name: "Plant your first tree" }).click();
   await page.getByLabel("Working title").fill("Memoir: the bridge");
@@ -261,10 +288,13 @@ test("Journey D: weigh a choice, keep the reasoning, and let it become the threa
   await page.getByLabel("Who is it for?").click();
   await page.getByText("Who is it for? Picture one reader.").waitFor();
 
+  // Discern: the memoir's guided steps, then a choice recorded from a step.
   await part(page, "Trunk").click();
-  await view(page, "Choices").click();
-  await page.getByRole("button", { name: "Weigh a choice" }).click();
-  await page.getByLabel("The question being decided").fill("Who tells this story?");
+  await view(page, "Discern").click();
+  await page.getByLabel("Your thinking").fill("The winter my father stopped driving.");
+  await page.getByRole("button", { name: /Done — next step/ }).click();
+  await page.locator(".step-list .step-row", { hasText: "Choose the frame" }).click();
+  await page.getByRole("button", { name: /Record this as a decision/ }).click();
   await page.getByLabel("Option 1", { exact: true }).fill("Younger me leads");
   await page.getByLabel("Option 2", { exact: true }).fill("Present me leads");
   await page.getByLabel("Choose option 2").click();
@@ -277,10 +307,13 @@ test("Journey D: weigh a choice, keep the reasoning, and let it become the threa
   assert.equal(await page.locator(".trunk-thread-text").inputValue(), "Present me leads");
 
   await page.reload({ waitUntil: "networkidle" });
-  await page.locator(".step-row", { hasText: "Who tells this story?" }).click();
+  await page.locator(".step-list .step-row", { hasText: "Choose the frame" }).click();
   assert.equal(await page.getByLabel(/Why this direction/).inputValue(), "Distance lets me be honest about what I didn't see.");
+  // The overview shows the thread and the choice behind it.
   await part(page, "Roots").click();
-  assert.equal(await page.getByLabel("The thread", { exact: true }).inputValue(), "Present me leads");
+  await view(page, "Overview").click();
+  assert.equal(await page.getByRole("textbox", { name: /The thread/ }).inputValue(), "Present me leads");
+  await page.getByText("From your choice:").waitFor();
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -357,6 +390,11 @@ test("Small screens: the grove, the trunk as a list, and planting from anywhere"
   await page.waitForURL(/#\/p\//);
   await part(page, "Trunk").click();
   await page.locator(".board-list").waitFor();
+  // On a phone, the storyboard becomes grouped lists.
+  await part(page, "Leaves").click();
+  await view(page, "Storyboard").click();
+  await page.locator(".board-list").getByText("Promising").first().waitFor();
+  assert.equal(await page.locator(".canvas").count(), 0);
   await page.locator(".mobile-nav").getByRole("button", { name: "Plant a thought" }).click();
   await page.getByLabel("Your thought").fill("A thought on the bus.");
   await page.getByRole("button", { name: "Plant", exact: true }).click();

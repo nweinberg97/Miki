@@ -8,11 +8,11 @@ import { partPath } from "../project/modes";
 import { byOrder, copyText, cx, plural, truncate, wordCount, formatDuration } from "../../lib/util";
 import { timeForExcerpt } from "../../transcription/engines";
 import { Dialog } from "../../ui/Dialog";
-import { IconCopy, IconDoc, IconLeaf, IconOutline, IconPlay, IconQuestion, IconScissors, IconTrash, IconCheck } from "../../ui/icons";
+import { IconCopy, IconDoc, IconIdea, IconLeaf, IconOutline, IconPlay, IconQuestion, IconScissors, IconTrash, IconCheck } from "../../ui/icons";
 import { Menu } from "../../ui/Menu";
 import { toast, toastError, toastUndo } from "../../ui/toast";
 import { Badge, Button, InlineEdit, Segmented } from "../../ui/ui";
-import { appendToDocument, excerptToNote, excerptToStructureCard, splitFragments } from "./derive";
+import { appendToDocument, excerptToIdeaCard, excerptToNote, excerptToStructureCard, splitFragments } from "./derive";
 import { orderStructure } from "../board/structureDoc";
 
 export function TranscriptView({ transcript, project, highlight }: { transcript: Transcript; project: Project | null; highlight?: string | null }) {
@@ -187,6 +187,9 @@ export function TranscriptView({ transcript, project, highlight }: { transcript:
           </Button>
           {!inInbox && (
             <>
+              <Button size="sm" variant="ghost" icon={IconIdea} onClick={() => void run("Put on the storyboard, linked to this passage.", () => excerptToIdeaCard(projectId, excerpt, source()))}>
+                Storyboard
+              </Button>
               <Menu
                 label="Carry onto the trunk"
                 align="start"
@@ -241,7 +244,7 @@ export function TranscriptView({ transcript, project, highlight }: { transcript:
           )}
         </div>
       )}
-      {!sel && view === "working" && <p className="extract-hint muted small">Select any passage worth keeping: make it a leaf, carry it onto the trunk, or add it to the draft. The transcript itself stays as it is.</p>}
+      {!sel && view === "working" && <p className="extract-hint muted small">Select any passage worth keeping: make it a leaf, put it on the storyboard, carry it onto the trunk, or add it to the draft. The transcript itself stays as it is.</p>}
       {inInbox && sel && <p className="muted small">Plant this recording in a project to carry passages onto its trunk or into a draft.</p>}
 
       {view === "working" ? (
@@ -299,6 +302,7 @@ function FragmentsDialog({ open, onClose, transcript, projectId }: { open: boole
   const fragments = useMemo(() => (open ? splitFragments(transcript.text) : []), [open, transcript.text]);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   
+  const [as, setAs] = useState<"leaves" | "storyboard">("leaves");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (open) setPicked(new Set());
@@ -310,9 +314,10 @@ function FragmentsDialog({ open, onClose, transcript, projectId }: { open: boole
         const f = fragments[i];
         const start = transcript.text.indexOf(f);
         const src: SourceRef = { type: "transcript", id: transcript.id, excerpt: truncate(f, 280), start, end: start + f.length, time: timeForExcerpt(transcript.original, transcript.segments, f) };
-        await excerptToNote(projectId, f, src, "fragment");
+        if (as === "storyboard" && projectId !== INBOX) await excerptToIdeaCard(projectId, f, src);
+        else await excerptToNote(projectId, f, src, "fragment");
       }
-      toast(`${plural(picked.size, projectId === INBOX ? "seed" : "leaf", projectId === INBOX ? "seeds" : "leaves")} kept, each linked to its passage.`);
+      toast(as === "storyboard" && projectId !== INBOX ? `${plural(picked.size, "card")} put on the storyboard, each linked to its passage.` : `${plural(picked.size, projectId === INBOX ? "seed" : "leaf", projectId === INBOX ? "seeds" : "leaves")} kept, each linked to its passage.`);
       onClose();
     } catch (e) {
       toastError(e);
@@ -329,6 +334,18 @@ function FragmentsDialog({ open, onClose, transcript, projectId }: { open: boole
       description="Miki split the transcript at paragraph and sentence breaks — nothing is rewritten or summarised. Keep the ones that matter; the rest stay in the transcript."
       footer={
         <>
+          {projectId !== INBOX && (
+            <Segmented
+              size="sm"
+              label="Keep as"
+              value={as}
+              onChange={setAs}
+              options={[
+                { value: "leaves", label: "Leaves" },
+                { value: "storyboard", label: "Storyboard cards" },
+              ]}
+            />
+          )}
           <span className="grow" />
           <Button variant="ghost" onClick={onClose}>
             Cancel

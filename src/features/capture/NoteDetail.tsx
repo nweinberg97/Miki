@@ -7,13 +7,13 @@ import { href, navigate } from "../../lib/router";
 import { entityHref, partPath } from "../project/modes";
 import type { EntityRef } from "../../data/types";
 import { byOrder, copyText, relativeTime } from "../../lib/util";
-import { IconCopy, IconDoc, IconLeafFall, IconMoveTo, IconOutline, IconRestore, IconSource, IconSprout, IconTrash } from "../../ui/icons";
+import { IconCopy, IconDoc, IconIdea, IconLeafFall, IconMoveTo, IconOutline, IconRestore, IconSource, IconSprout, IconTrash } from "../../ui/icons";
 import { Menu } from "../../ui/Menu";
 import { toast, toastError, toastUndo } from "../../ui/toast";
 import { Button, Segmented } from "../../ui/ui";
 import { orderStructure } from "../board/structureDoc";
 import { useProjectEntities } from "../shared/entities";
-import { appendToDocument, excerptToStructureCard } from "./derive";
+import { appendToDocument, excerptToIdeaCard, excerptToStructureCard } from "./derive";
 
 const KINDS: { value: NoteKind; label: string }[] = [
   { value: "note", label: "Leaf" },
@@ -151,6 +151,9 @@ export function NoteDetail({ note, project, onDeleted }: { note: Note; project: 
           />
         ) : (
           <>
+            <Button size="sm" variant="secondary" icon={IconIdea} onClick={() => void run("Put on the storyboard.", () => excerptToIdeaCard(projectId, body, ref, title))}>
+              Put on the storyboard
+            </Button>
             <Menu
               label="Carry onto the trunk"
               align="start"

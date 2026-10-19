@@ -4,21 +4,22 @@ import { setQuery } from "../../lib/router";
 import { toastError } from "../../ui/toast";
 import { InlineEdit, Segmented } from "../../ui/ui";
 import { BoardMode } from "../board/BoardMode";
-import { ChoicesView } from "../discern/ChoicesView";
+import { DiscernMode } from "../discern/DiscernMode";
 import { WriteMode } from "../write/WriteMode";
 import { MikiAsks } from "./MikiAsks";
 
-export type TrunkView = "shape" | "draft" | "choices";
+export type TrunkView = "shape" | "draft" | "discern";
 
 export function trunkView(query: URLSearchParams): TrunkView {
   const v = query.get("view");
-  if (v === "shape" || v === "draft" || v === "choices") return v;
+  if (v === "shape" || v === "draft" || v === "discern") return v;
+  if (v === "choices") return "discern";
   if (query.get("doc")) return "draft";
-  if (query.get("decision")) return "choices";
+  if (query.get("decision") || query.get("step") || query.get("process")) return "discern";
   return "shape";
 }
 
-/** 幹 Trunk — discernment. The thread, what you chose to carry (in order), your choices, and the draft. */
+/** 幹 Trunk — discernment. The thread, the shape you give the work, the draft, and the choices that hold it up. */
 export function TrunkMode({ project, query }: { project: Project; query: URLSearchParams }) {
   const view = trunkView(query);
   return (
@@ -28,11 +29,11 @@ export function TrunkMode({ project, query }: { project: Project; query: URLSear
           size="sm"
           label="Trunk"
           value={view}
-          onChange={(v) => setQuery({ view: v, card: null, decision: null, doc: v === "draft" ? query.get("doc") : null })}
+          onChange={(v) => setQuery({ view: v, card: null, decision: null, step: null, process: null, doc: v === "draft" ? query.get("doc") : null })}
           options={[
             { value: "shape", label: "Shape" },
             { value: "draft", label: "Draft" },
-            { value: "choices", label: "Choices" },
+            { value: "discern", label: "Discern" },
           ]}
         />
         <div className="trunk-thread">
@@ -48,7 +49,7 @@ export function TrunkMode({ project, query }: { project: Project; query: URLSear
       </div>
       {view === "shape" && <MikiAsks project={project} part="trunk" />}
       <div className="trunk-view">
-        {view === "shape" ? <BoardMode project={project} kind="structure" query={query} /> : view === "draft" ? <WriteMode project={project} query={query} /> : <ChoicesView project={project} query={query} />}
+        {view === "shape" ? <BoardMode project={project} kind="structure" query={query} /> : view === "draft" ? <WriteMode project={project} query={query} /> : <DiscernMode project={project} query={query} />}
       </div>
     </div>
   );

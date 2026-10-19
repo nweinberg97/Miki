@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { addLink, createDecision, createDocument, deleteCards, removeLink, updateCard } from "../../data/repo";
+import { addLink, createDecision, createDocument, deleteCards, removeLink, sendCardToBoard, updateCard } from "../../data/repo";
 import type { Card, CardType, Project } from "../../data/types";
 import { buildDoc, docToPlainText } from "../../editor/serialize";
 import { navigate, href } from "../../lib/router";
 import { cx, wordCount } from "../../lib/util";
-import { IconArrowRight, IconConnect, IconDoc, IconSignpost, IconSource, IconTrash, IconX } from "../../ui/icons";
+import { IconArrowRight, IconConnect, IconDoc, IconMoveTo, IconSignpost, IconSource, IconTrash, IconX } from "../../ui/icons";
 import { Menu } from "../../ui/Menu";
-import { toastError, toastUndo } from "../../ui/toast";
+import { toast, toastError, toastUndo } from "../../ui/toast";
+import { orderStructure } from "./structureDoc";
 import { Button, IconButton, Select } from "../../ui/ui";
 import { EntityChip, EntityPicker, linksFor, useProjectEntities } from "../shared/entities";
-import { entityHref, partPath } from "../project/modes";
+import { entityHref, partPath, viewLoc } from "../project/modes";
 import type { BoardData } from "./BoardMode";
 import { CARD_META, LINK_KINDS } from "./cardMeta";
 
@@ -65,6 +66,20 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
   const isIdeas = data.board.kind === "ideas";
   const links = linksFor(data.links, { type: "card", id: card.id });
 
+  const otherSections = data.otherBoard ? orderStructure(data.otherSections, []).filter((c) => c.section) : [];
+  const sendToOther = async (sectionId: string | null) => {
+    if (!data.otherBoard) return;
+    try {
+      persist();
+      const copy = await sendCardToBoard(card.id, data.otherBoard.id, sectionId);
+      toast(isIdeas ? "Carried onto the trunk. It stays on the storyboard too." : "Copied to the storyboard.", {
+        action: { label: "Go there", onClick: () => navigate(...viewLoc(project.id, isIdeas ? "arrange" : "explore", { card: copy.id })) },
+      });
+    } catch (e) {
+      toastError(e);
+    }
+  };
+
   const startDraft = async () => {
     try {
       persist();
@@ -81,7 +96,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
     try {
       persist();
       const d = await createDecision(project.id, { question: title || body.slice(0, 120), linkTo: { type: "card", id: card.id } });
-      navigate(partPath(project.id, "trunk"), { view: "choices", decision: d.id });
+      navigate(partPath(project.id, "trunk"), { view: "discern", decision: d.id });
     } catch (e) {
       toastError(e);
     }
@@ -91,7 +106,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
     try {
       const restore = await deleteCards([card.id]);
       onClose();
-      toastUndo(card.source?.type === "note" ? "Taken off the trunk. The leaf it came from is still there." : "Taken off the trunk.", restore);
+      toastUndo(isIdeas ? "Removed from the storyboard." : card.source?.type === "note" ? "Taken off the trunk. The leaf it came from is still there." : "Taken off the trunk.", restore);
     } catch (e) {
       toastError(e);
     }
@@ -230,8 +245,26 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
                 <IconArrowRight size={14} aria-hidden />
               </button>
             )}
+            {data.otherBoard && (
+              <Menu
+                label={isIdeas ? "Carry onto the trunk" : "Copy to the storyboard"}
+                align="start"
+                trigger={(t) => (
+                  <button {...t} type="button" className="card-action">
+                    <IconMoveTo size={15} aria-hidden />
+                    <span className="grow">{isIdeas ? "Carry onto the trunk…" : "Copy to the storyboard"}</span>
+                    <IconArrowRight size={14} aria-hidden />
+                  </button>
+                )}
+                items={
+                  isIdeas
+                    ? [{ heading: "Which part?" }, ...otherSections.map((c) => ({ label: c.section!.title, onSelect: () => void sendToOther(c.section!.id) })), { separator: true as const }, { label: "Not placed yet", onSelect: () => void sendToOther(null) }]
+                    : [{ label: "Copy to the storyboard", onSelect: () => void sendToOther(null) }]
+                }
+              />
+            )}
             {card.decisionId ? (
-              <a className="card-action" href={href(partPath(project.id, "trunk"), { view: "choices", decision: card.decisionId })}>
+              <a className="card-action" href={href(partPath(project.id, "trunk"), { view: "discern", decision: card.decisionId })}>
                 <IconSignpost size={15} aria-hidden />
                 <span className="grow">Open the choice</span>
                 <IconArrowRight size={14} aria-hidden />
@@ -251,7 +284,7 @@ export function CardPanel({ project, card, data, onClose }: { project: Project; 
       <footer className="card-panel-foot">
         <span className="faint small">Edits save automatically</span>
         <Button size="sm" variant="ghost" icon={IconTrash} className={cx("danger-text")} onClick={() => void remove()}>
-          Take off the trunk
+          {isIdeas ? "Delete" : "Take off the trunk"}
         </Button>
       </footer>
       <EntityPicker

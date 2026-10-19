@@ -31,6 +31,18 @@ const GROUPS: { title: string; items: [string[], string][] }[] = [
     ],
   },
   {
+    title: "Storyboard",
+    items: [
+      [["N"], "New card"],
+      [["Enter"], "Open the selected card"],
+      [["Arrows"], "Nudge selection (Shift for more)"],
+      [["F"], "Fit everything in view"],
+      [["Shift", "Drag"], "Select several cards"],
+      [["Delete"], "Delete selection (undoable)"],
+      [["Esc"], "Clear selection"],
+    ],
+  },
+  {
     title: "Trunk",
     items: [
       [["Enter"], "Open the focused piece"],

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { openDB, diagnostics, db } from "./data/db";
-import { getPref, migrateIdeaCards, setPref } from "./data/repo";
+import { openDB, diagnostics } from "./data/db";
+import { getPref } from "./data/repo";
 import { useRoute, navigate } from "./lib/router";
 import { ui, openCapture } from "./lib/store";
 import { isTypingTarget } from "./lib/util";
@@ -27,11 +27,6 @@ export function App() {
       .then(async () => {
         const failing = await getPref<StoreName[]>("diagnostics:failWrites", []);
         failing.forEach((s) => diagnostics.failWritesTo.add(s));
-        // One-time move to the three-part model: loose idea cards become leaves.
-        if (!(await getPref<boolean>("migrated:leaves:v1", false))) {
-          for (const p of await db.getAll("projects")) await migrateIdeaCards(p.id);
-          await setPref("migrated:leaves:v1", true);
-        }
         setBoot("ready");
       })
       .catch((err: Error) => setBoot(err));
