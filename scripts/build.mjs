@@ -18,7 +18,8 @@ export async function esbuildOptions({ outdir, dev = false, single = false }) {
     absWorkingDir: root,
     entryPoints: { app: "src/main.tsx" },
     bundle: true,
-    format: "esm",
+    // The single file uses a classic script: inline module scripts reject HTML-comment-like sequences.
+    format: single ? "iife" : "esm",
     splitting: !single,
     // The single-file demo can't load lazy chunks, so everything is bundled into one script.
     outdir,
@@ -43,6 +44,14 @@ export async function esbuildOptions({ outdir, dev = false, single = false }) {
   };
 }
 
+/**
+ * Make a bundle safe to inline in <script>: "<!--", "<script" and "</script" change how HTML parses
+ * script content. They only occur inside string/regex/template literals, where \x3C is equivalent.
+ */
+export function escapeInlineScript(js) {
+  return js.replace(/<(!--|script|\/script)/gi, "\\x3C$1");
+}
+
 export async function renderIndexHtml({ scripts, styles, dev = false, inlineJs = "", inlineCss = "" }) {
   let html = await readFile(path.join(root, "src/index.html"), "utf8");
   const head = [
@@ -51,13 +60,13 @@ export async function renderIndexHtml({ scripts, styles, dev = false, inlineJs =
   ].join("\n    ");
   const body = [
     ...scripts.map((s) => `<script type="module" src="./${s}"></script>`),
-    // Inline as a base64 data URL: avoids HTML-parser pitfalls with "</script" or "<!--" inside the bundle.
-    inlineJs ? `<script type="module" src="data:text/javascript;base64,${Buffer.from(inlineJs).toString("base64")}"></script>` : "",
+    inlineJs ? `<script>${escapeInlineScript(inlineJs)}</script>` : "",
     dev
       ? `<script>new EventSource("/__reload").addEventListener("reload",()=>location.reload())</script>`
       : "",
   ].join("\n    ");
-  return html.replace("<!--HEAD-->", head).replace("<!--BODY-->", body);
+  // Function replacers: the bundle contains "$&"-style sequences that string replacements would expand.
+  return html.replace("<!--HEAD-->", () => head).replace("<!--BODY-->", () => body);
 }
 
 async function buildDist() {
@@ -115,6 +124,10 @@ async function buildSingle() {
     .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="data:image/svg+xml,${encodeURIComponent(icon)}">`)
     .replace(/<link rel="apple-touch-icon"[^>]*>/, "");
   await writeFile(path.join(outdir, "miki.html"), html);
+  // A body-only variant for hosts that supply their own document skeleton (e.g. a claude.ai artifact).
+  const head = html.match(/<head>([\s\S]*?)<\/head>/)[1].replace(/<meta charset[^>]*>|<meta name="viewport"[^>]*>/g, "");
+  const body = html.match(/<body>([\s\S]*?)<\/body>/)[1];
+  await writeFile(path.join(outdir, "miki-embed.html"), `${head.trim()}\n${body.trim()}\n`);
   console.log(`Built dist-single/miki.html (${(html.length / 1024).toFixed(0)} KB)`);
 }
 

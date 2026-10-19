@@ -77,7 +77,25 @@ export function slugify(text: string): string {
   );
 }
 
+type DownloadsCap = { save: (r: { filename: string; data: Blob }) => Promise<unknown> } | null;
+type HostClaude = { use: (name: string) => Promise<unknown> };
+
+/** Some embedding hosts (a claude.ai artifact) block plain downloads but offer a confirmed save instead. */
+function hostDownloads(): Promise<DownloadsCap> | null {
+  const c = (window as unknown as { claude?: HostClaude }).claude;
+  return c?.use ? (c.use("downloads") as Promise<DownloadsCap>) : null;
+}
+
 export function downloadBlob(blob: Blob, filename: string) {
+  const host = hostDownloads();
+  if (host) {
+    void host.then((d) => (d ? d.save({ filename, data: blob }).catch(() => undefined) : anchorDownload(blob, filename)));
+    return;
+  }
+  anchorDownload(blob, filename);
+}
+
+function anchorDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
