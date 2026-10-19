@@ -1,19 +1,18 @@
-# Builds Miki and publishes it to GitHub Pages on every push to main.
-# One-time setup in the repo: Settings → Pages → Build and deployment → Source: "GitHub Actions".
-name: Deploy to GitHub Pages
+# Keeps the live site (GitHub Pages, deployed from the main branch) in step with the code.
+# On every push to main it builds Miki into one self-contained file and commits it as /index.html.
+name: Build the live site
 
 on:
   push:
     branches: [main]
+    paths-ignore: ["index.html"]
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
+  group: site
   cancel-in-progress: true
 
 jobs:
@@ -27,18 +26,14 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
-      - run: npm run build
-      - run: touch dist/.nojekyll
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - run: npm run build:single
+      - name: Commit the built app as index.html
+        run: |
+          cp dist-single/miki.html index.html
+          touch .nojekyll
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add index.html .nojekyll
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git commit -m "Update the live site (index.html) from ${GITHUB_SHA::7}"
+          git push
