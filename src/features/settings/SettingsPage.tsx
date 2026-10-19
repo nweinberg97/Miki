@@ -252,12 +252,12 @@ function TranscriptionSection() {
               To connect one, run Miki with its server (<code>npm start</code>, or deploy to Vercel) and set an environment variable. Any OpenAI-compatible speech-to-text service works,
               including one running on your own machine:
             </p>
-            <pre className="code">{`# OpenAI
-TRANSCRIPTION_API_KEY=sk-...
-
-# Or a local Whisper server (nothing leaves your machine)
+            <pre className="code">{`# Free: a Whisper server on your own machine (nothing leaves it)
 TRANSCRIPTION_API_BASE=http://localhost:8000/v1
-TRANSCRIPTION_MODEL=Systran/faster-whisper-small`}</pre>
+TRANSCRIPTION_MODEL=Systran/faster-whisper-small
+
+# Or a paid hosted service, e.g. OpenAI
+TRANSCRIPTION_API_KEY=sk-...`}</pre>
             <p className="muted">Keys stay on the server. They're never sent to the browser.</p>
           </div>
         )}

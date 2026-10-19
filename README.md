@@ -6,6 +6,15 @@ Miki is **local-first**: your writing lives in your browser's own database on yo
 
 ---
 
+## Cost: free
+
+Nothing in Miki requires a paid service, an account, or an API key.
+
+- **The app** is open-source code with no paid dependencies; fonts are open-licensed and bundled.
+- **Hosting** is free on GitHub Pages, Netlify, Cloudflare Pages, or Vercel's Hobby plan — or just run it locally.
+- **Storage** is your own browser. There's no database bill because there's no database server.
+- **Turning voice into text** has three free paths: live dictation in Chrome/Edge/Safari, importing or typing a transcript, or a free Whisper server on your own machine (`docker run -p 8000:8000 ghcr.io/speaches-ai/speaches:latest-cpu`, then set `TRANSCRIPTION_API_BASE` — see `.env.example`). A paid provider such as OpenAI is supported but never needed.
+
 ## Quick start
 
 ```bash
@@ -104,7 +113,7 @@ tests/         unit (node:test) and end-to-end (Playwright)
 
 Recording always works (where the browser supports MediaRecorder); turning audio into text uses whichever real path is available:
 
-1. **Server relay** to an OpenAI-compatible endpoint — OpenAI, Groq, or a **local Whisper server** (fully on your machine). See `.env.example`.
+1. **Server relay** to an OpenAI-compatible endpoint — a free **local Whisper server** (fully on your machine), or optionally a paid service like OpenAI. See `.env.example`.
 2. **Live dictation** while recording, using the browser's speech recognition (opt-in; Chrome/Edge send audio to the vendor's service — disclosed in the UI).
 3. **Import** a `.txt`, `.vtt`, or `.srt` transcript from another app, or **write it out** yourself while listening back.
 

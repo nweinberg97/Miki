@@ -126,7 +126,8 @@ async function buildSingle() {
   await writeFile(path.join(outdir, "miki.html"), html);
   // A body-only variant for hosts that supply their own document skeleton (e.g. a claude.ai artifact).
   const head = html.match(/<head>([\s\S]*?)<\/head>/)[1].replace(/<meta charset[^>]*>|<meta name="viewport"[^>]*>/g, "");
-  const body = html.match(/<body>([\s\S]*?)<\/body>/)[1];
+  // Slice to the LAST </body>: the bundle itself contains "</body>" inside an export template.
+  const body = html.slice(html.indexOf("<body>") + 6, html.lastIndexOf("</body>"));
   await writeFile(path.join(outdir, "miki-embed.html"), `${head.trim()}\n${body.trim()}\n`);
   console.log(`Built dist-single/miki.html (${(html.length / 1024).toFixed(0)} KB)`);
 }
